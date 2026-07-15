@@ -7,7 +7,8 @@
     "dev": "nodemon index.js",
     "start": "node index.js",
     "seed:admin": "node seeds/admin.seed.js",
-    "seed:destinations": "node seeds/destinations.seed.js"
+    "seed:destinations": "node seeds/destinations.seed.js",
+    "seed:blogs": "node seeds/blogs.seed.js"
   },
   "keywords": [],
   "author": "",
