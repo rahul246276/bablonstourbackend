@@ -21,20 +21,35 @@ const normalizeLinkType = (type, url = '') => {
   return 'page'
 }
 
-const normalizeInternalLinks = (links) => {
-  if (!Array.isArray(links)) return []
+const parseInternalLinkString = (value = '') => {
+  const links = []
+  const text = String(value)
+  const pattern = /([^|\n]+?)\|(https?:\/\/[^\s|]+|\/[^\s|]+)(?:\|(blog|package|destination|page|external))?/gi
+  let match = pattern.exec(text)
+
+  while (match) {
+    const [, label, url, type] = match
+    links.push({ label: label.trim(), url: url.trim(), type: normalizeLinkType(type, url) })
+    match = pattern.exec(text)
+  }
 
   return links
+}
+
+const normalizeInternalLinks = (links) => {
+  const rows = Array.isArray(links) ? links : parseInternalLinkString(links)
+
+  return rows
     .map((link) => {
       if (typeof link === 'string') {
-        const [label, url, type] = link.split('|').map((item) => item.trim())
-        return { label, url, type: normalizeLinkType(type, url) }
+        return parseInternalLinkString(link)
       }
 
       const label = String(link?.label || '').trim()
       const url = String(link?.url || '').trim()
       return { label, url, type: normalizeLinkType(link?.type, url) }
     })
+    .flat()
     .filter((link) => link.label && link.url)
 }
 
