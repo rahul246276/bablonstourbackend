@@ -24,7 +24,7 @@ const normalizeLinkType = (type, url = '') => {
 const parseInternalLinkString = (value = '') => {
   const links = []
   const text = String(value)
-  const pattern = /([^|\n]+?)\|(https?:\/\/[^\s|]+|\/[^\s|]+)(?:\|(blog|package|destination|page|external))?/gi
+  const pattern = /([^|\n]+?)\s*\|\s*(https?:\/\/[^\s|]+|\/[^\s|]+)\s*(?:\|\s*(blog|package|destination|page|external))?/gi
   let match = pattern.exec(text)
 
   while (match) {
