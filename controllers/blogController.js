@@ -9,12 +9,42 @@ const toArray = (value) => {
   return []
 }
 
+const linkTypes = ['blog', 'package', 'destination', 'page', 'external']
+
+const normalizeLinkType = (type, url = '') => {
+  const normalized = String(type || '').trim().toLowerCase()
+  if (linkTypes.includes(normalized)) return normalized
+  if (/^https?:\/\//i.test(url)) return 'external'
+  if (url.startsWith('/blogs/')) return 'blog'
+  if (url.startsWith('/packages/')) return 'package'
+  if (url.startsWith('/destinations/')) return 'destination'
+  return 'page'
+}
+
+const normalizeInternalLinks = (links) => {
+  if (!Array.isArray(links)) return []
+
+  return links
+    .map((link) => {
+      if (typeof link === 'string') {
+        const [label, url, type] = link.split('|').map((item) => item.trim())
+        return { label, url, type: normalizeLinkType(type, url) }
+      }
+
+      const label = String(link?.label || '').trim()
+      const url = String(link?.url || '').trim()
+      return { label, url, type: normalizeLinkType(link?.type, url) }
+    })
+    .filter((link) => link.label && link.url)
+}
+
 const normalizeBlogPayload = (body) => {
   const payload = { ...body }
 
   if (payload.tags !== undefined) payload.tags = toArray(payload.tags)
   if (payload.highlights !== undefined) payload.highlights = toArray(payload.highlights)
   if (payload.relatedBlogSlugs !== undefined) payload.relatedBlogSlugs = toArray(payload.relatedBlogSlugs).map((slug) => slug.toLowerCase())
+  if (payload.internalLinks !== undefined) payload.internalLinks = normalizeInternalLinks(payload.internalLinks)
   if (payload.seo?.keywords !== undefined) payload.seo.keywords = toArray(payload.seo.keywords)
 
   if (typeof payload.coverImage === 'string') {
