@@ -17,6 +17,8 @@ const contactRoutes = require('./routes/contactRoutes')
 const newsletterRoutes = require('./routes/newsletterRoutes')
 const testimonialRoutes = require('./routes/testimonialRoutes')
 const blogRoutes = require('./routes/blogRoutes')
+const seoRoutes = require('./routes/seoRoutes')
+const seoController = require('./controllers/seoController')
 const notFoundMiddleware = require('./middleware/notFoundMiddleware')
 const errorMiddleware = require('./middleware/errorMiddleware')
 const { successResponse } = require('./utils/apiResponse')
@@ -57,6 +59,9 @@ const publicLimiter = rateLimit({
 
 app.use('/api/v1', publicLimiter)
 
+app.get('/sitemap.xml', seoController.getSitemap)
+app.get('/robots.txt', seoController.getRobots)
+
 app.get('/api/v1/health', (req, res) => {
   return successResponse(res, 200, 'Bablons backend is healthy', {
     service: 'Bablons Tours & Entertainments API',
@@ -75,6 +80,7 @@ app.use('/api/v1/contact', contactRoutes)
 app.use('/api/v1/newsletter', newsletterRoutes)
 app.use('/api/v1/testimonials', testimonialRoutes)
 app.use('/api/v1/blogs', blogRoutes)
+app.use('/api/v1/seo', seoRoutes)
 
 app.use(notFoundMiddleware)
 app.use(errorMiddleware)
