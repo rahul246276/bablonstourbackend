@@ -514,7 +514,6 @@ packageSchema.index({ status: 1, featured: 1, 'pricing.basePrice': 1 })
 packageSchema.index({ packageType: 1, 'duration.days': 1 })
 packageSchema.index({ 'departures.departureDate': 1, 'departures.status': 1 })
 packageSchema.index({ 'destination.country': 1 })
-packageSchema.index({ tags: 1 })
 
 packageSchema.pre('validate', function preparePackage() {
   if (!this.slug && this.title) {
