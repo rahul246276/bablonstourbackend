@@ -36,6 +36,7 @@ const shapeSuggestion = (mapping, travelPackage, options = {}) => {
     displayOrder: mapping?.displayOrder ?? options.displayOrder ?? 0,
     isActive: mapping?.isActive ?? true,
     isAutoSuggested: Boolean(options.isAutoSuggested),
+    packagePlans: hotel?.packagePlans || [],
     packageBasePrice,
     estimatedFinalPrice: packageBasePrice + hotelPrice,
   }

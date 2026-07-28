@@ -12,6 +12,8 @@ const imageSchema = new mongoose.Schema(
 )
 
 const hotelSchema = new mongoose.Schema(
+  
+
   {
     hotelName: {
       type: String,
@@ -20,6 +22,11 @@ const hotelSchema = new mongoose.Schema(
       minlength: [2, 'Hotel name must be at least 2 characters'],
       maxlength: [160, 'Hotel name cannot exceed 160 characters'],
       index: 'text',
+    },
+    packagePlans: {
+      type: [{ type: String, enum: ['classic', 'gold', 'platinum', 'premium', 'Elite'] }],
+      default: [],
+      index: true,
     },
     slug: {
       type: String,
@@ -40,6 +47,7 @@ const hotelSchema = new mongoose.Schema(
       default: '',
       index: true,
     },
+  
     starRating: {
       type: Number,
       min: [1, 'Star rating must be at least 1'],
@@ -108,7 +116,9 @@ const hotelSchema = new mongoose.Schema(
     },
   },
   { timestamps: true }
+  
 )
+
 
 hotelSchema.index({ hotelName: 'text', countryId: 'text', cityId: 'text', hotelCategory: 'text' })
 hotelSchema.index({ countryId: 1, cityId: 1, isActive: 1 })

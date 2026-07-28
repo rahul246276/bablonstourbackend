@@ -20,6 +20,7 @@ const hotelPayloadSchema = z.object({
   cityId: optionalString,
   starRating: numberLike.min(1).max(5).optional(),
   hotelCategory: optionalString,
+  packagePlans: z.array(z.enum(['classic', 'gold', 'platinum', 'premium', 'Elite'])).optional(),
   price: numberLike.min(0).optional(),
   priceInr: numberLike.min(0).optional(),
   priceUsd: numberLike.min(0).optional(),
