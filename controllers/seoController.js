@@ -61,9 +61,18 @@ ${entries
 
 const getPublicSitemapEntries = async () => {
   const [packages, destinations, blogs] = await Promise.all([
-    Package.find({ status: 'published', isActive: true }).select('slug updatedAt publishedAt createdAt').sort({ updatedAt: -1 }).lean(),
-    Destination.find({ isActive: true }).select('cityType countrySlug citySlug slug updatedAt createdAt').sort({ countrySlug: 1, sortOrder: 1 }).lean(),
-    Blog.find({ isPublished: true }).select('slug updatedAt publishedAt createdAt').sort({ publishedAt: -1, updatedAt: -1 }).lean(),
+    Package.find({ $or: [{ status: 'published' }, { status: { $exists: false } }], isActive: true })
+      .select('slug updatedAt publishedAt createdAt')
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .lean(),
+    Destination.find({ isActive: true })
+      .select('cityType countrySlug citySlug slug updatedAt createdAt')
+      .sort({ countrySlug: 1, sortOrder: 1, createdAt: 1 })
+      .lean(),
+    Blog.find({ isPublished: true })
+      .select('slug updatedAt publishedAt createdAt')
+      .sort({ publishedAt: -1, updatedAt: -1, createdAt: -1 })
+      .lean(),
   ])
 
   const entries = [
@@ -79,7 +88,10 @@ const getPublicSitemapEntries = async () => {
         })
       ),
     ...destinations
-      .filter((item) => item.countrySlug && (item.citySlug || item.slug) && item.cityType !== 'country')
+      .filter((item) => {
+        const destinationSlug = item.citySlug || item.slug
+        return Boolean(item.countrySlug && destinationSlug && item.cityType !== 'country')
+      })
       .map((item) =>
         toUrlEntry({
           path: `/destinations/${item.countrySlug}/${item.citySlug || item.slug}`,
@@ -100,9 +112,12 @@ const getPublicSitemapEntries = async () => {
       ),
   ]
 
-  const uniqueEntries = new Map()
-  entries.forEach((entry) => uniqueEntries.set(entry.loc, entry))
-  return Array.from(uniqueEntries.values())
+  const seen = new Set()
+  return entries.filter((entry) => {
+    if (!entry?.loc || seen.has(entry.loc)) return false
+    seen.add(entry.loc)
+    return true
+  })
 }
 
 const getSitemap = asyncHandler(async (req, res) => {
