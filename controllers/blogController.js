@@ -123,7 +123,7 @@ const getBlog = asyncHandler(async (req, res) => {
     $or: [{ category: blog.category }, { tags: { $in: blog.tags || [] } }],
   })
     .sort({ publishedAt: -1, createdAt: -1 })
-    .limit(Math.max(0, 6 - explicitRelated.length))
+    .limit(Math.max(0, 20 - explicitRelated.length))
 
   return successResponse(res, 200, 'Blog fetched successfully', {
     blog,
