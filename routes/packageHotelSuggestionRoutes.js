@@ -26,13 +26,6 @@ router.post(
   packageHotelSuggestionController.createSuggestion
 )
 router.get(
-  '/admin/packages/:packageId/matching-hotels',
-  protect,
-  authorize('super_admin', 'admin'),
-  validate(listPackageHotelSuggestionSchema),
-  packageHotelSuggestionController.listMatchingHotels
-)
-router.get(
   '/admin/packages/:packageId/suggested-hotels',
   protect,
   authorize('super_admin', 'admin'),

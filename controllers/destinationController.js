@@ -1,10 +1,17 @@
 const Destination = require('../models/Destination')
+const Blog = require('../models/Blog')
 const ApiError = require('../utils/ApiError')
 const asyncHandler = require('../utils/asyncHandler')
+const cache = require('../utils/cache')
 const { successResponse } = require('../utils/apiResponse')
 
 const getImageUrl = (image) => image?.url || image?.src || ''
 const normalizeKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+const toArray = (value) => {
+  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean)
+  if (typeof value === 'string') return value.split(',').map((item) => item.trim()).filter(Boolean)
+  return []
+}
 
 const COUNTRY_SLUG_ALIASES = {
   dubai: ['dubai', 'dubai-uae', 'uae', 'united-arab-emirates'],
@@ -15,6 +22,29 @@ const COUNTRY_SLUG_ALIASES = {
 
 const getCountrySlugCandidates = (countrySlug = '') => COUNTRY_SLUG_ALIASES[countrySlug] || [countrySlug]
 
+const getDestinationPageCacheKeys = (item = {}) => {
+  const slugs = [item.slug, item.citySlug].filter(Boolean)
+  const countrySlugs = getCountrySlugCandidates(String(item.countrySlug || '').trim()).filter(Boolean)
+  const keys = new Set()
+
+  slugs.forEach((slug) => {
+    keys.add(`destination:page:${slug}:all`)
+    countrySlugs.forEach((country) => keys.add(`destination:page:${slug}:${country}`))
+  })
+
+  if (String(item._id || '').match(/^[0-9a-fA-F]{24}$/)) {
+    keys.add(`destination:page:${item._id}:all`)
+    countrySlugs.forEach((country) => keys.add(`destination:page:${item._id}:${country}`))
+  }
+
+  return Array.from(keys)
+}
+
+const clearDestinationPageCache = async (item) => {
+  const keys = getDestinationPageCacheKeys(item)
+  await Promise.all(keys.map((key) => cache.del(key)))
+}
+
 const normalizeDestinationPayload = (payload = {}) => {
   const nextPayload = { ...payload }
 
@@ -22,6 +52,18 @@ const normalizeDestinationPayload = (payload = {}) => {
   if (nextPayload.cityType === 'country' && !nextPayload.name && nextPayload.country) {
     nextPayload.name = nextPayload.country
   }
+
+  if (nextPayload.seo) {
+    nextPayload.seo = { ...nextPayload.seo }
+    if (nextPayload.seo.keywords !== undefined) {
+      nextPayload.seo.keywords = toArray(nextPayload.seo.keywords)
+    }
+  }
+
+  if (typeof nextPayload.relatedBlogSlugs === 'string') nextPayload.relatedBlogSlugs = toArray(nextPayload.relatedBlogSlugs)
+  if (typeof nextPayload.featuredBlogSlugs === 'string') nextPayload.featuredBlogSlugs = toArray(nextPayload.featuredBlogSlugs)
+  if (typeof nextPayload.travelTips === 'string') nextPayload.travelTips = toArray(nextPayload.travelTips)
+  if (typeof nextPayload.safetyTips === 'string') nextPayload.safetyTips = toArray(nextPayload.safetyTips)
 
   delete nextPayload.city
   return nextPayload
@@ -157,8 +199,29 @@ const getDestination = asyncHandler(async (req, res) => {
   return successResponse(res, 200, 'Destination fetched successfully', { destination: item, item })
 })
 
+const { composePage } = require('../services/destinationPageService')
+
+const getDestinationPage = asyncHandler(async (req, res) => {
+  const slug = req.params.slug
+  const include = (req.query.include || '').split(',').filter(Boolean)
+  const opts = {
+    include: include.length ? include : ['blogs', 'packages', 'hotels', 'nearbyDestinations'],
+    cacheTtl: Number(req.query.cacheTtl) || 300,
+    countrySlug: req.query.countrySlug || undefined,
+  }
+
+  const page = await composePage(slug, opts)
+  if (!page) throw new ApiError(404, 'Destination not found')
+  return successResponse(res, 200, 'Destination page fetched successfully', page)
+})
+
 const createDestination = asyncHandler(async (req, res) => {
   const item = await Destination.create(normalizeDestinationPayload(req.body))
+  try {
+    await clearDestinationPageCache(item)
+  } catch (e) {
+    // cache invalidation best-effort
+  }
   return successResponse(res, 201, 'Destination created successfully', { destination: item, item })
 })
 
@@ -167,13 +230,23 @@ const updateDestination = asyncHandler(async (req, res) => {
   if (!item) throw new ApiError(404, 'Destination not found')
   Object.assign(item, normalizeDestinationPayload(req.body))
   await item.save()
+  try {
+    await clearDestinationPageCache(item)
+  } catch (e) {
+    // ignore
+  }
   return successResponse(res, 200, 'Destination updated successfully', { destination: item, item })
 })
 
 const deleteDestination = asyncHandler(async (req, res) => {
   const item = await Destination.findByIdAndDelete(req.params.id)
   if (!item) throw new ApiError(404, 'Destination not found')
+  try {
+    await clearDestinationPageCache(item)
+  } catch (e) {
+    // ignore
+  }
   return successResponse(res, 200, 'Destination deleted successfully', { id: req.params.id })
 })
 
-module.exports = { listDestinations, listDestinationGroups, getDestination, createDestination, updateDestination, deleteDestination }
+module.exports = { listDestinations, listDestinationGroups, getDestination, getDestinationPage, createDestination, updateDestination, deleteDestination }

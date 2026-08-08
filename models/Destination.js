@@ -13,9 +13,18 @@ const imageSchema = new mongoose.Schema(
   { _id: false }
 )
 
+const textBlockSchema = new mongoose.Schema(
+  {
+    title: { type: String, trim: true, default: '' },
+    description: { type: String, trim: true, default: '' },
+    items: [{ type: String, trim: true }],
+  },
+  { _id: false }
+)
+
 const destinationSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, trim: true, index: 'text' },
+    name: { type: String, required: true, trim: true, index: true },
     slug: { type: String, lowercase: true, trim: true, index: true },
     citySlug: { type: String, lowercase: true, trim: true, index: true },
     country: { type: String, required: true, trim: true, index: true },
@@ -35,6 +44,62 @@ const destinationSchema = new mongoose.Schema(
     travelTips: [{ type: String, trim: true }],
     bestTimeToVisit: { type: String, trim: true, default: '' },
     currency: { type: String, trim: true, default: '' },
+    spokenLanguage: { type: String, trim: true, default: '' },
+    timezone: { type: String, trim: true, default: '' },
+    whyVisit: [textBlockSchema],
+    thingsToDo: [textBlockSchema],
+    weatherGuide: textBlockSchema,
+    visaInformation: textBlockSchema,
+    flightsInformation: textBlockSchema,
+    transportation: textBlockSchema,
+    foodGuide: textBlockSchema,
+    shoppingGuide: textBlockSchema,
+    nightlife: textBlockSchema,
+    familyTravelGuide: textBlockSchema,
+    honeymoonGuide: textBlockSchema,
+    luxuryTravelGuide: textBlockSchema,
+    budgetGuide: textBlockSchema,
+    safetyTips: [{ type: String, trim: true }],
+    suggestedItineraries: [
+      {
+        title: { type: String, trim: true, default: '' },
+        duration: { type: String, trim: true, default: '' },
+        summary: { type: String, trim: true, default: '' },
+        days: [
+          {
+            title: { type: String, trim: true, default: '' },
+            description: { type: String, trim: true, default: '' },
+          },
+        ],
+      },
+    ],
+    videos: [
+      {
+        title: { type: String, trim: true, default: '' },
+        url: { type: String, trim: true, default: '' },
+        thumbnail: imageSchema,
+      },
+    ],
+    mapEmbedUrl: { type: String, trim: true, default: '' },
+    latestTravelNews: [textBlockSchema],
+    reviews: [
+      {
+        name: { type: String, trim: true, default: '' },
+        rating: { type: Number, min: 1, max: 5, default: 5 },
+        comment: { type: String, trim: true, default: '' },
+      },
+    ],
+    faqs: [
+      {
+        question: { type: String, trim: true, default: '' },
+        answer: { type: String, trim: true, default: '' },
+      },
+    ],
+    // Controls for related blog selection and presentation
+    relatedBlogSlugs: [{ type: String, trim: true }],
+    featuredBlogSlugs: [{ type: String, trim: true }],
+    blogFetchMode: { type: String, enum: ['auto', 'manual', 'featured', 'hybrid'], default: 'auto' },
+    maxBlogs: { type: Number, default: 4 },
     isFeatured: { type: Boolean, default: false, index: true },
     isActive: { type: Boolean, default: true, index: true },
     sortOrder: { type: Number, default: 0, index: true },
@@ -47,7 +112,10 @@ const destinationSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
-destinationSchema.index({ name: 'text', country: 'text', shortDescription: 'text' })
+destinationSchema.index(
+  { name: 'text', country: 'text', shortDescription: 'text', overview: 'text' },
+  { language_override: 'textSearchLanguage' }
+)
 destinationSchema.index({ countrySlug: 1, citySlug: 1 })
 
 destinationSchema.pre('validate', function prepareDestination() {

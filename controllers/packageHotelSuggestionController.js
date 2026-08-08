@@ -12,14 +12,14 @@ const isObjectId = (value) => /^[0-9a-fA-F]{24}$/.test(String(value || ''))
 const getPackageCurrency = (travelPackage) =>
   String(travelPackage.pricing?.currency || 'INR').toUpperCase()
 
-const shapeSuggestion = (mapping, travelPackage, options = {}) => {
-  const hotel = mapping?.hotelId || mapping
+const shapeSuggestion = (mapping, travelPackage) => {
+  const hotel = mapping.hotelId
   const currency = getPackageCurrency(travelPackage)
   const packageBasePrice = Number(travelPackage.pricing?.basePrice || travelPackage.pricing?.pricePerPerson || 0)
   const hotelPrice = getHotelPrice(hotel, currency)
 
   return {
-    mappingId: mapping?._id || null,
+    mappingId: mapping._id,
     hotelId: hotel?._id,
     hotelName: hotel?.hotelName,
     thumbnailImage: hotel?.thumbnailImage,
@@ -32,11 +32,9 @@ const shapeSuggestion = (mapping, travelPackage, options = {}) => {
     priceInr: Number(hotel?.priceInr ?? hotel?.price ?? 0),
     priceUsd: Number(hotel?.priceUsd ?? hotel?.price ?? 0),
     currency,
-    isFeatured: mapping?.isFeatured ?? hotel?.featured ?? false,
-    displayOrder: mapping?.displayOrder ?? options.displayOrder ?? 0,
-    isActive: mapping?.isActive ?? true,
-    isAutoSuggested: Boolean(options.isAutoSuggested),
-    packagePlans: hotel?.packagePlans || [],
+    isFeatured: mapping.isFeatured,
+    displayOrder: mapping.displayOrder,
+    isActive: mapping.isActive,
     packageBasePrice,
     estimatedFinalPrice: packageBasePrice + hotelPrice,
   }
@@ -52,36 +50,9 @@ const loadPackage = async (packageId, publicOnly = false) => {
     filter.isActive = true
   }
 
-  const travelPackage = await Package.findOne(filter).select('title slug cities pricing status isActive country destination')
+  const travelPackage = await Package.findOne(filter).select('title slug cities pricing status isActive country')
   if (!travelPackage) throw new ApiError(404, 'Package not found')
   return travelPackage
-}
-
-const findMatchingHotels = async (travelPackage) => {
-  const activeHotels = await Hotel.find({ isActive: true }).sort({
-    featured: -1,
-    recommended: -1,
-    topSeller: -1,
-    createdAt: -1,
-  })
-
-  return activeHotels.filter((hotel) => locationMatchesPackage(hotel, travelPackage))
-}
-
-const mergeSuggestions = (curatedItems, matchingHotels, travelPackage) => {
-  const curatedSuggestions = curatedItems
-    .filter((item) => item.hotelId)
-    .map((item) => shapeSuggestion(item, travelPackage))
-
-  const curatedHotelIds = new Set(curatedSuggestions.map((item) => String(item.hotelId)))
-  const autoSuggestions = matchingHotels
-    .filter((hotel) => !curatedHotelIds.has(String(hotel._id)))
-    .map((hotel, index) => shapeSuggestion(hotel, travelPackage, {
-      displayOrder: curatedSuggestions.length + index,
-      isAutoSuggested: true,
-    }))
-
-  return [...curatedSuggestions, ...autoSuggestions]
 }
 
 const createSuggestion = asyncHandler(async (req, res) => {
@@ -135,18 +106,6 @@ const listAdminSuggestions = asyncHandler(async (req, res) => {
   return successResponse(res, 200, 'Suggested hotels fetched successfully', { suggestions, items: suggestions })
 })
 
-const listMatchingHotels = asyncHandler(async (req, res) => {
-  const travelPackage = await loadPackage(req.params.packageId)
-  const hotels = await findMatchingHotels(travelPackage)
-
-  return successResponse(res, 200, 'Matching hotels fetched successfully', {
-    hotels,
-    items: hotels,
-    packageCities: travelPackage.cities || [],
-    packageCountry: travelPackage.country?.name || '',
-  })
-})
-
 const updateSuggestion = asyncHandler(async (req, res) => {
   const travelPackage = await loadPackage(req.params.packageId)
   const item = await PackageHotelSuggestion.findOne({ _id: req.params.mappingId, packageId: travelPackage._id })
@@ -172,21 +131,20 @@ const deleteSuggestion = asyncHandler(async (req, res) => {
 
 const listPublicSuggestions = asyncHandler(async (req, res) => {
   const travelPackage = await loadPackage(req.params.packageId, true)
-  const [curatedItems, matchingHotels] = await Promise.all([
-    PackageHotelSuggestion.find({ packageId: travelPackage._id, isActive: true })
-      .populate({ path: 'hotelId', match: { isActive: true } })
-      .sort({ displayOrder: 1, createdAt: 1 }),
-    findMatchingHotels(travelPackage),
-  ])
+  const items = await PackageHotelSuggestion.find({ packageId: travelPackage._id, isActive: true })
+    .populate({ path: 'hotelId', match: { isActive: true } })
+    .sort({ displayOrder: 1, createdAt: 1 })
 
-  const suggestions = mergeSuggestions(curatedItems, matchingHotels, travelPackage)
+  const suggestions = items
+    .filter((item) => item.hotelId && locationMatchesPackage(item.hotelId, travelPackage))
+    .map((item) => shapeSuggestion(item, travelPackage))
+
   return successResponse(res, 200, 'Suggested hotels fetched successfully', { suggestions, items: suggestions })
 })
 
 module.exports = {
   createSuggestion,
   listAdminSuggestions,
-  listMatchingHotels,
   updateSuggestion,
   deleteSuggestion,
   listPublicSuggestions,

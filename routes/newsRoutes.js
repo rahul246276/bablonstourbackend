@@ -1,0 +1,24 @@
+const express = require('express')
+const newsController = require('../controllers/newsController')
+const { protect } = require('../middleware/authMiddleware')
+const { authorize } = require('../middleware/roleMiddleware')
+const validate = require('../middleware/validateMiddleware')
+const { createNewsRules, updateNewsRules, idParamRule, listQueryRules } = require('../validators/newsController')
+
+const router = express.Router()
+
+router.get('/featured', newsController.getFeaturedNews)
+router.get('/latest', newsController.getLatestNews)
+router.get('/category/:category', newsController.getNewsByCategory)
+router.get('/country/:country', newsController.getNewsByCountry)
+router.get('/admin/list', protect, authorize('super_admin'), validate(listQueryRules), newsController.getNewsForAdmin)
+router.get('/admin/:id', protect, authorize('super_admin'), validate(idParamRule), newsController.getNewsByIdForAdmin)
+router.post('/admin', protect, authorize('super_admin'), validate(createNewsRules), newsController.createNews)
+router.put('/admin/:id', protect, authorize('super_admin'), validate(updateNewsRules), newsController.updateNews)
+router.delete('/admin/:id', protect, authorize('super_admin'), validate(idParamRule), newsController.deleteNews)
+router.patch('/admin/:id/status', protect, authorize('super_admin'), validate(idParamRule), newsController.toggleStatus)
+router.patch('/admin/:id/featured', protect, authorize('super_admin'), validate(idParamRule), newsController.toggleFeatured)
+router.get('/', newsController.getPublicNews)
+router.get('/:slug', newsController.getNewsBySlug)
+
+module.exports = router

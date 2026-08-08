@@ -28,7 +28,6 @@ describe('package hotel suggestions', () => {
       title: 'Test package',
       slug: 'test-package',
       country: { name: 'India' },
-      cities: ['Goa'],
       packageType: 'group',
       duration: { nights: 4, days: 5 },
       pricing: { basePrice: 12000, currency: 'INR' },
@@ -59,41 +58,6 @@ describe('package hotel suggestions', () => {
     expect(response.body.success).toBe(true)
     expect(response.body.data.items).toHaveLength(1)
     expect(response.body.data.items[0].hotelName).toBe('Test Hotel')
-  })
-
-  it('auto suggests hotels when city and country match the package', async () => {
-    const Package = require('../models/Package')
-    const Hotel = require('../models/Hotel')
-
-    const packageDoc = await Package.create({
-      title: 'Tashkent package',
-      slug: 'tashkent-package',
-      country: { name: 'Uzbekistan' },
-      cities: ['Tashkent'],
-      packageType: 'group',
-      duration: { nights: 4, days: 5 },
-      pricing: { basePrice: 12000, currency: 'INR' },
-      status: 'published',
-      isActive: true,
-    })
-
-    await Hotel.create({
-      hotelName: 'Tashkent Palace',
-      slug: 'tashkent-palace',
-      cityId: 'Tashkent',
-      countryId: 'Uzbekistan',
-      price: 2500,
-      isActive: true,
-    })
-
-    const response = await request(app)
-      .get(`/api/v1/packages/${packageDoc._id}/suggested-hotels`)
-      .expect(200)
-
-    expect(response.body.success).toBe(true)
-    expect(response.body.data.items).toHaveLength(1)
-    expect(response.body.data.items[0].hotelName).toBe('Tashkent Palace')
-    expect(response.body.data.items[0].isAutoSuggested).toBe(true)
   })
 
   it('does not create duplicate suggestions when the same hotel is submitted twice', async () => {

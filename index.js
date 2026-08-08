@@ -1,4 +1,4 @@
-require('dotenv').config()
+require('dotenv').config({ quiet: true })
 
 const express = require('express')
 const cors = require('cors')
@@ -22,6 +22,8 @@ const testimonialRoutes = require('./routes/testimonialRoutes')
 const blogRoutes = require('./routes/blogRoutes')
 const seoRoutes = require('./routes/seoRoutes')
 const seoController = require('./controllers/seoController')
+const newsRoutes = require("./routes/newsRoutes");
+const newsController = require("./controllers/newsController");
 const notFoundMiddleware = require('./middleware/notFoundMiddleware')
 const errorMiddleware = require('./middleware/errorMiddleware')
 const { successResponse } = require('./utils/apiResponse')
@@ -87,7 +89,7 @@ app.use('/api/v1/newsletter', newsletterRoutes)
 app.use('/api/v1/testimonials', testimonialRoutes)
 app.use('/api/v1/blogs', blogRoutes)
 app.use('/api/v1/seo', seoRoutes)
-
+app.use('/api/v1/news', newsRoutes)
 app.use(notFoundMiddleware)
 app.use(errorMiddleware)
 
@@ -104,6 +106,8 @@ const startServer = async () => {
   }
 }
 
-startServer()
+if (require.main === module) {
+  startServer()
+}
 
-module.exports = app
+module.exports = { app, startServer }
