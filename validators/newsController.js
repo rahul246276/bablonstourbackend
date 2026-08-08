@@ -45,17 +45,31 @@ const idParamSchema = z.object({
   query: z.object({}).strict(),
 });
 
+const parseNumber = z.preprocess((value) => {
+  if (typeof value === 'string' && value.trim() !== '') return Number(value)
+  if (typeof value === 'number') return value
+  return undefined
+}, z.number().int().positive().optional())
+
+const parseBooleanString = z.preprocess((value) => {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') return value === 'true'
+  return undefined
+}, z.boolean().optional())
+
 const listQuerySchema = z.object({
   body: z.object({}).strict(),
   params: z.object({}).strict(),
   query: z.object({
-    page: z.string().optional(),
-    limit: z.string().optional(),
+    page: parseNumber,
+    limit: parseNumber,
     search: z.string().optional(),
     category: z.enum(NEWS_CATEGORIES).optional(),
     status: z.enum(["draft", "published"]).optional(),
     country: z.string().optional(),
-    featured: z.string().optional(),
+    featured: parseBooleanString,
+    sortBy: z.string().optional(),
+    sortOrder: z.enum(["asc", "desc"]).optional(),
   }).strict(),
 });
 
