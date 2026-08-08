@@ -32,6 +32,13 @@ router.get(
   validate(listPackageHotelSuggestionSchema),
   packageHotelSuggestionController.listAdminSuggestions
 )
+router.get(
+  '/admin/packages/:packageId/matching-hotels',
+  protect,
+  authorize('super_admin', 'admin'),
+  validate(listPackageHotelSuggestionSchema),
+  packageHotelSuggestionController.listMatchingHotels
+)
 router.put(
   '/admin/packages/:packageId/suggested-hotels/:mappingId',
   protect,

@@ -142,10 +142,22 @@ const listPublicSuggestions = asyncHandler(async (req, res) => {
   return successResponse(res, 200, 'Suggested hotels fetched successfully', { suggestions, items: suggestions })
 })
 
+const listMatchingHotels = asyncHandler(async (req, res) => {
+  const travelPackage = await loadPackage(req.params.packageId)
+  const hotels = await Hotel.find({ isActive: true }).sort({ hotelName: 1 }).lean()
+  const matchingHotels = hotels.filter((hotel) => locationMatchesPackage(hotel, travelPackage))
+
+  return successResponse(res, 200, 'Matching hotels fetched successfully', {
+    hotels: matchingHotels,
+    items: matchingHotels,
+  })
+})
+
 module.exports = {
   createSuggestion,
   listAdminSuggestions,
   updateSuggestion,
   deleteSuggestion,
   listPublicSuggestions,
+  listMatchingHotels,
 }
