@@ -128,6 +128,11 @@ const packageSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    itineraryPdfUrl: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     category: {
       type: String,
       trim: true,

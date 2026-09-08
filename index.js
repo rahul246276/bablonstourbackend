@@ -20,6 +20,8 @@ const contactRoutes = require('./routes/contactRoutes')
 const newsletterRoutes = require('./routes/newsletterRoutes')
 const testimonialRoutes = require('./routes/testimonialRoutes')
 const blogRoutes = require('./routes/blogRoutes')
+const tripEnquiryRoutes = require('./routes/tripEnquiryRoutes');
+const itineraryRoutes = require('./routes/itineraryRoutes');
 const seoRoutes = require('./routes/seoRoutes')
 const seoController = require('./controllers/seoController')
 const newsRoutes = require("./routes/newsRoutes");
@@ -87,6 +89,8 @@ app.use('/api/v1/inquiries', inquiryRoutes)
 app.use('/api/v1/contact', contactRoutes)
 app.use('/api/v1/newsletter', newsletterRoutes)
 app.use('/api/v1/testimonials', testimonialRoutes)
+app.use('/api/v1/trip-enquiries', tripEnquiryRoutes);
+app.use('/api/v1/itineraries', itineraryRoutes);
 app.use('/api/v1/blogs', blogRoutes)
 app.use('/api/v1/seo', seoRoutes)
 app.use('/api/v1/news', newsRoutes)

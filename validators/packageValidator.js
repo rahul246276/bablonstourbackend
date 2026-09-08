@@ -2,6 +2,10 @@ const { z } = require('zod')
 
 const objectId = z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid id')
 const optionalString = z.string().trim().optional().or(z.literal(''))
+const optionalUrl = z.preprocess(
+  (value) => (typeof value === 'string' ? value.trim() : value),
+  z.string().url('Itinerary PDF link must be valid').optional().or(z.literal(''))
+)
 const numberLike = z.coerce.number().finite()
 
 const packageStatus = z.enum(['draft', 'published', 'archived'])
@@ -20,6 +24,7 @@ const packagePayloadSchema = z.object({
   slug: optionalString,
   shortDescription: optionalString,
   description: optionalString,
+  itineraryPdfUrl: optionalUrl,
   category: optionalString,
   tags: z.array(z.string().trim()).optional(),
   country: z.union([

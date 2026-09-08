@@ -124,63 +124,16 @@ const blogs = [
       ],
     },
   },
-  {
-    title: 'Bali Honeymoon Packages from India 2026: Villas, Waterfalls & Beach Clubs',
-    slug: 'bali-honeymoon-packages-from-india-2026',
-    category: 'Travel',
-    heroLabel: 'Bali Honeymoon Guide',
-    excerpt: 'Bali Honeymoon Packages from India 2026: Villas, Waterfalls & Beach Clubs',
-    highlights: [
-      'Private pool villas for couples',
-      'Ubud rice terraces & waterfall excursions',
-      'Beach clubs in Seminyak & Canggu',
-      'Customizable 5-7 day honeymoon itineraries',
-      'Family-friendly options also available',
-    ],
-    tags: ['Bali', 'Honeymoon', 'Couples Travel', 'Family Holiday', 'Indonesia'],
-    sections: makeSections([
-      [
-        "Why Bali Is India's Top Honeymoon Destination",
-        'Bali has become the go-to honeymoon destination for Indian couples, offering a rare combination of privacy, natural beauty, and affordability. Private villas with plunge pools are widely available at a fraction of the cost of comparable properties in Europe or the Maldives.',
-      ],
-      [
-        'Ubud: Nature and Culture',
-        'Ubud is known for its rice terraces, waterfalls, and traditional Balinese temples. A day trip here typically includes the Tegalalang Rice Terrace, Tegenungan Waterfall, and a traditional Balinese lunch overlooking the valley.',
-      ],
-      [
-        'Seminyak & Canggu: Beach Clubs and Sunsets',
-        'For couples who want a livelier vibe, Seminyak and Canggu offer beach clubs, sunset dinners, and boutique shopping streets, a popular add-on to any honeymoon itinerary.',
-      ],
-      [
-        'Nusa Penida & Island Day Trips',
-        'A day trip to Nusa Penida is one of the most requested add-ons, known for its dramatic cliffs and turquoise water viewpoints like Kelingking Beach.',
-      ],
-      [
-        'Ideal Bali Honeymoon Duration and Budget',
-        'Most couples opt for a 5-7 day itinerary combining Ubud and Seminyak/Canggu. This allows enough time for both nature excursions and relaxed beach days without feeling rushed.',
-      ],
-      [
-        'Book Your Bali Honeymoon with Bablons Travel & Entertainment',
-        'We design fully customized Bali honeymoon packages, including private villas, curated excursions, and airport transfers. Call or WhatsApp +91 98102 12399 to start planning.',
-      ],
-    ]),
-    internalLinks: [
-      { label: 'Bali Honeymoon Packages', url: '/packages/bali-honeymoon', type: 'package' },
-      { label: 'Bali Family Holiday Packages', url: '/packages/bali-family', type: 'package' },
-    ],
-    relatedBlogSlugs: ['best-international-tour-packages-from-india-2026', 'thailand-tour-packages-from-india-2026'],
-    seo: {
-      metaTitle: 'Bali Honeymoon Packages from India 2026 | Bablons Travel',
-      metaDescription: 'Plan Bali honeymoon packages from India with private villas, Ubud waterfalls, beach clubs, island trips and custom romantic itineraries.',
-      keywords: [
-        'Bali honeymoon packages',
-        'Bali family holiday packages',
-        'Bali tour packages from India',
-        'Ubud rice terrace tour',
-        'Bali couples travel packages',
-      ],
-    },
-  },
+  
+  
+
+
+
+
+
+
+
+  
   {
     title: 'Georgia Tour Packages from India 2026: Tbilisi, Gudauri & Batumi Travel Guide',
     slug: 'georgia-tour-packages-from-india-2026',
