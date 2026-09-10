@@ -2,6 +2,7 @@ const express = require('express')
 const packageController = require('../controllers/packageController')
 const { protect } = require('../middleware/authMiddleware')
 const { authorize } = require('../middleware/roleMiddleware')
+const { uploadPdf } = require('../middleware/uploadMiddleware')
 const validate = require('../middleware/validateMiddleware')
 const {
   createPackageSchema,
@@ -17,6 +18,7 @@ const optionalAuth = (req, res, next) => {
 }
 
 router.get('/', optionalAuth, packageController.listPackages)
+router.post('/:packageId/itinerary', protect, authorize('super_admin'), uploadPdf, packageController.uploadPackageItineraryPdf)
 router.get('/:slug/related', packageController.getRelatedPackages)
 router.get('/:slug/reviews', packageController.getPackageReviews)
 router.post('/:slug/inquiry', validate(packageInquirySchema), packageController.createPackageInquiry)

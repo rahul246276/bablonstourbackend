@@ -1,11 +1,25 @@
+const streamifier = require('streamifier')
+
 const Package = require('../models/Package')
 const Inquiry = require('../models/Inquiry')
 const BookingInquiry = require('../models/BookingInquiry')
+const { cloudinary, assertCloudinaryConfig } = require('../config/cloudinary')
 const ApiError = require('../utils/ApiError')
 const asyncHandler = require('../utils/asyncHandler')
 const { successResponse } = require('../utils/apiResponse')
 
 const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const sanitizePdfFilename = (originalName = 'itinerary.pdf') => {
+  const fileName = String(originalName || 'itinerary.pdf').split('/').pop().split('\\').pop()
+  const extension = /\.pdf$/i.test(fileName) ? '.pdf' : '.pdf'
+  const baseName = fileName.replace(/\.pdf$/i, '').trim()
+  const safeBaseName = baseName
+    .replace(/[^a-zA-Z0-9\-_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || 'itinerary'
+
+  return `${safeBaseName}${extension}`
+}
 
 const toPackagePayload = (body, userId) => {
   const payload = { ...body }
@@ -197,6 +211,56 @@ const deletePackage = asyncHandler(async (req, res) => {
   return successResponse(res, 200, 'Package deleted successfully', { id: req.params.id })
 })
 
+const uploadPackageItineraryPdf = asyncHandler(async (req, res) => {
+  assertCloudinaryConfig()
+
+  const packageId = String(req.params.packageId || '').trim()
+  if (!packageId) {
+    throw new ApiError(400, 'Package id is required')
+  }
+
+  if (!/^[0-9a-fA-F]{24}$/.test(packageId)) {
+    throw new ApiError(400, 'Invalid package id')
+  }
+
+  if (!req.file) {
+    throw new ApiError(400, 'A PDF file is required')
+  }
+
+  const item = await Package.findById(packageId)
+  if (!item) {
+    throw new ApiError(404, 'Package not found')
+  }
+
+  const upload = await new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: 'bablons/itineraries',
+        resource_type: 'raw',
+        public_id: sanitizePdfFilename(req.file.originalname),
+        unique_filename: false,
+        allowed_formats: ['pdf'],
+      },
+      (error, result) => {
+        if (error) return reject(error)
+        return resolve(result)
+      }
+    )
+
+    streamifier.createReadStream(req.file.buffer).pipe(stream)
+  })
+
+  item.itineraryPdfUrl = upload.secure_url
+  await item.save()
+
+  return successResponse(res, 200, 'Itinerary uploaded successfully', {
+    pdfUrl: upload.secure_url,
+    itineraryPdfUrl: upload.secure_url,
+    package: item,
+    item,
+  })
+})
+
 const updatePackageStatus = asyncHandler(async (req, res) => {
   const item = await Package.findById(req.params.id)
   if (!item) throw new ApiError(404, 'Package not found')
@@ -219,5 +283,6 @@ module.exports = {
   createPackage,
   updatePackage,
   deletePackage,
+  uploadPackageItineraryPdf,
   updatePackageStatus,
 }
