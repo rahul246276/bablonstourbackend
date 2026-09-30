@@ -35,16 +35,39 @@ const app = express()
 const PORT = process.env.PORT || 5000
 const NODE_ENV = process.env.NODE_ENV || 'development'
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173'
+const allowedOrigins = CLIENT_URL.split(',').map((origin) => origin.trim()).filter(Boolean)
+
+if (NODE_ENV === 'development') {
+  allowedOrigins.push(
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+  )
+}
 
 app.set('trust proxy', 1)
 
 app.use(helmet())
+
 app.use(
   cors({
-    origin: CLIENT_URL,
+    origin(origin, callback) {
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, origin);
+      }
+
+      console.error(`CORS blocked origin: ${origin}`);
+      return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+    },
     credentials: true,
   })
-)
+);
+
 app.use(express.json({ limit: '1mb' }))
 app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 
