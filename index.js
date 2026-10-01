@@ -35,7 +35,13 @@ const app = express()
 const PORT = process.env.PORT || 5000
 const NODE_ENV = process.env.NODE_ENV || 'development'
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173'
-const allowedOrigins = CLIENT_URL.split(',').map((origin) => origin.trim()).filter(Boolean)
+
+const allowedOrigins = CLIENT_URL
+  .split(',')
+  .map((origin) => origin.trim().replace(/\/+$/, ''))
+  .filter(Boolean)
+
+console.log('CORS allowed origins:', allowedOrigins)
 
 if (NODE_ENV === 'development') {
   allowedOrigins.push(
