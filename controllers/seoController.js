@@ -4,17 +4,49 @@ const News = require('../models/News')
 const Package = require('../models/Package')
 const asyncHandler = require('../utils/asyncHandler')
 
-const SITE_URL = (process.env.SITE_URL || process.env.CLIENT_URL || 'https://bablonstravelent.com').replace(/\/+$/, '')
+const CANONICAL_SITE_URL = 'https://bablonstravelent.com'
+const SITE_URL = (() => {
+  try {
+    const configuredUrl = new URL(process.env.SITE_URL || '')
+    if (configuredUrl.origin === CANONICAL_SITE_URL && configuredUrl.pathname === '/' && !configuredUrl.search && !configuredUrl.hash) {
+      return configuredUrl.origin
+    }
+  } catch {}
+  return CANONICAL_SITE_URL
+})()
 
 const staticPages = [
   { path: '/', priority: '1.00', changefreq: 'weekly' },
   { path: '/destinations', priority: '0.90', changefreq: 'weekly' },
   { path: '/packages', priority: '0.90', changefreq: 'weekly' },
   { path: '/blogs', priority: '0.80', changefreq: 'weekly' },
+  { path: '/travel-news', priority: '0.80', changefreq: 'weekly' },
+  { path: '/news', priority: '0.80', changefreq: 'weekly' },
   { path: '/gallery', priority: '0.70', changefreq: 'monthly' },
   { path: '/about', priority: '0.70', changefreq: 'monthly' },
-  { path: '/contact', priority: '0.70', changefreq: 'monthly' },
+  { path: '/contact-us', priority: '0.70', changefreq: 'monthly' },
   { path: '/faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/dubai/faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/thailand/faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/uzbekistan/faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/georgia/faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/visa-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/flight-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/hotel-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/payment-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/emi-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/passport-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/travel-insurance-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/honeymoon-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/family-tour-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/group-tour-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/corporate-tour-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/student-tour-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/luxury-tour-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/budget-tour-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/packing-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/travel-safety-faq', priority: '0.60', changefreq: 'monthly' },
+  { path: '/plan-your-trip', priority: '0.60', changefreq: 'monthly' },
   { path: '/privacy-policy', priority: '0.30', changefreq: 'yearly' },
   { path: '/terms-and-conditions', priority: '0.30', changefreq: 'yearly' },
 ]
@@ -119,7 +151,7 @@ const getPublicSitemapEntries = async () => {
       .filter((item) => item.slug)
       .map((item) =>
         toUrlEntry({
-          path: `/news/${item.slug}`,
+          path: `/travel-news/${item.slug}`,
           lastmod: item.updatedAt || item.publishedAt || item.createdAt,
           changefreq: 'monthly',
           priority: '0.65',
@@ -159,7 +191,6 @@ Disallow: /api
 Disallow: /*?*
 
 Sitemap: ${SITE_URL}/sitemap.xml
-Sitemap: ${SITE_URL}/api/v1/seo/sitemap.xml
 `)
 })
 

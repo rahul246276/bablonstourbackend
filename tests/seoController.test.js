@@ -5,7 +5,11 @@ const Blog = require('../models/Blog')
 const Destination = require('../models/Destination')
 const News = require('../models/News')
 const Package = require('../models/Package')
+const originalSiteUrl = process.env.SITE_URL
+process.env.SITE_URL = 'https://bablonstravelent.com,https://www.bablonstravelent.com,https://admin.bablonstravelent.com'
 const { getSitemap } = require('../controllers/seoController')
+if (originalSiteUrl === undefined) delete process.env.SITE_URL
+else process.env.SITE_URL = originalSiteUrl
 
 const query = (items) => ({
   select() { return this },
@@ -13,12 +17,12 @@ const query = (items) => ({
   lean: async () => items,
 })
 
-test('sitemap includes published news article URLs and their last modified date', async () => {
+test('sitemap uses only canonical URLs and includes live public content', async () => {
   const models = [Package, Destination, Blog, News]
   const originalFind = models.map((model) => model.find)
-  Package.find = () => query([])
-  Destination.find = () => query([])
-  Blog.find = () => query([])
+  Package.find = () => query([{ slug: 'new-package', updatedAt: '2026-09-20T00:00:00.000Z' }])
+  Destination.find = () => query([{ countrySlug: 'kazakhstan', citySlug: 'almaty', slug: 'kazakhstan-almaty' }])
+  Blog.find = () => query([{ slug: 'new-blog', updatedAt: '2026-09-19T00:00:00.000Z' }])
   News.find = (filter) => {
     assert.deepEqual(filter, { status: 'published' })
     return query([{ slug: 'new-visa-rules', updatedAt: '2026-09-21T00:00:00.000Z' }])
@@ -37,8 +41,19 @@ test('sitemap includes published news article URLs and their last modified date'
       getSitemap({}, response, reject)
     })
     assert.equal(response.statusCode, 200)
-    assert.match(response.body, /<loc>https:\/\/bablonstravelent\.com\/news\/new-visa-rules<\/loc>/)
+    const locations = [...response.body.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1])
+    assert(locations.length > 0)
+    assert.equal(new Set(locations).size, locations.length)
+    for (const location of locations) {
+      assert.match(location, /^https:\/\/bablonstravelent\.com\//)
+      assert.doesNotMatch(location, /,|admin\.|vercel\.app/)
+    }
+    assert.match(response.body, /<loc>https:\/\/bablonstravelent\.com\/packages\/new-package<\/loc>/)
+    assert.match(response.body, /<loc>https:\/\/bablonstravelent\.com\/destinations\/kazakhstan\/almaty<\/loc>/)
+    assert.match(response.body, /<loc>https:\/\/bablonstravelent\.com\/blogs\/new-blog<\/loc>/)
+    assert.match(response.body, /<loc>https:\/\/bablonstravelent\.com\/travel-news\/new-visa-rules<\/loc>/)
     assert.match(response.body, /<lastmod>2026-09-21<\/lastmod>/)
+    assert.match(response.body, /<loc>https:\/\/bablonstravelent\.com\/travel-news<\/loc>/)
   } finally {
     models.forEach((model, index) => { model.find = originalFind[index] })
   }
