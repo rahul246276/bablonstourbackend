@@ -41,6 +41,13 @@ const allowedOrigins = CLIENT_URL
   .map((origin) => origin.trim().replace(/\/+$/, ''))
   .filter(Boolean)
 
+allowedOrigins.push(
+  'http://localhost:3100',
+  'http://127.0.0.1:3100',
+  'http://localhost:3200',
+  'http://127.0.0.1:3200'
+)
+
 console.log('CORS allowed origins:', allowedOrigins)
 
 if (NODE_ENV === 'development') {
@@ -65,12 +72,12 @@ app.use(
 
       const normalizedOrigin = origin.replace(/\/+$/, '')
 
-if (allowedOrigins.includes(normalizedOrigin)) {
-  return callback(null, origin)
-}
+      if (allowedOrigins.includes(normalizedOrigin)) {
+        return callback(null, origin)
+      }
 
-console.error('CORS blocked origin:', origin)
-return callback(new Error(`Origin ${origin} is not allowed by CORS`))
+      console.error('CORS blocked origin:', origin)
+      return callback(new Error(`Origin ${origin} is not allowed by CORS`))
     },
     credentials: true,
   })
