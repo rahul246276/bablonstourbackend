@@ -63,12 +63,14 @@ app.use(
         return callback(null, true);
       }
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, origin);
-      }
+      const normalizedOrigin = origin.replace(/\/+$/, '')
 
-      console.error(`CORS blocked origin: ${origin}`);
-      return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+if (allowedOrigins.includes(normalizedOrigin)) {
+  return callback(null, origin)
+}
+
+console.error('CORS blocked origin:', origin)
+return callback(new Error(`Origin ${origin} is not allowed by CORS`))
     },
     credentials: true,
   })

@@ -1,5 +1,6 @@
 const Blog = require('../models/Blog')
 const Destination = require('../models/Destination')
+const News = require('../models/News')
 const Package = require('../models/Package')
 const asyncHandler = require('../utils/asyncHandler')
 
@@ -60,7 +61,7 @@ ${entries
 `
 
 const getPublicSitemapEntries = async () => {
-  const [packages, destinations, blogs] = await Promise.all([
+  const [packages, destinations, blogs, news] = await Promise.all([
     Package.find({ $or: [{ status: 'published' }, { status: { $exists: false } }], isActive: true })
       .select('slug updatedAt publishedAt createdAt')
       .sort({ updatedAt: -1, createdAt: -1 })
@@ -70,6 +71,10 @@ const getPublicSitemapEntries = async () => {
       .sort({ countrySlug: 1, sortOrder: 1, createdAt: 1 })
       .lean(),
     Blog.find({ isPublished: true })
+      .select('slug updatedAt publishedAt createdAt')
+      .sort({ publishedAt: -1, updatedAt: -1, createdAt: -1 })
+      .lean(),
+    News.find({ status: 'published' })
       .select('slug updatedAt publishedAt createdAt')
       .sort({ publishedAt: -1, updatedAt: -1, createdAt: -1 })
       .lean(),
@@ -105,6 +110,16 @@ const getPublicSitemapEntries = async () => {
       .map((item) =>
         toUrlEntry({
           path: `/blogs/${item.slug}`,
+          lastmod: item.updatedAt || item.publishedAt || item.createdAt,
+          changefreq: 'monthly',
+          priority: '0.65',
+        })
+      ),
+    ...news
+      .filter((item) => item.slug)
+      .map((item) =>
+        toUrlEntry({
+          path: `/news/${item.slug}`,
           lastmod: item.updatedAt || item.publishedAt || item.createdAt,
           changefreq: 'monthly',
           priority: '0.65',
