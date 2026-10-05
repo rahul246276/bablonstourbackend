@@ -7,9 +7,25 @@ const News = require('../models/News')
 const Package = require('../models/Package')
 const originalSiteUrl = process.env.SITE_URL
 process.env.SITE_URL = 'https://bablonstravelent.com,https://www.bablonstravelent.com,https://admin.bablonstravelent.com'
+const seo = require('../utils/seo')
 const { getSitemap } = require('../controllers/seoController')
 if (originalSiteUrl === undefined) delete process.env.SITE_URL
 else process.env.SITE_URL = originalSiteUrl
+
+test('SEO URL helpers select a single canonical origin from comma-separated SITE_URL', () => {
+  assert.equal(seo.SITE_URL, 'https://bablonstravelent.com')
+  assert.equal(seo.absoluteUrl('/destinations/dubai'), 'https://bablonstravelent.com/destinations/dubai')
+  assert.equal(seo.absoluteUrl('https://admin.bablonstravelent.com/page'), 'https://bablonstravelent.com/page')
+})
+
+test('SEO routes are mounted at the expected API paths', () => {
+  const seoRoutes = require('../routes/seoRoutes')
+  assert(seoRoutes.stack.some((layer) => layer.route?.path === '/sitemap.xml'))
+  assert(seoRoutes.stack.some((layer) => layer.route?.path === '/robots.txt'))
+  const { app } = require('../index')
+  const mountedSeoRouter = app.router.stack.find((layer) => layer.handle === seoRoutes)
+  assert(mountedSeoRouter, 'SEO router should be mounted in the Express app')
+})
 
 const query = (items) => ({
   select() { return this },
