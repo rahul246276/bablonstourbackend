@@ -5,13 +5,17 @@ const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 const validate = require('../middleware/validateMiddleware');
 
-const { createItinerarySchema, updateItinerarySchema } = require('../validators/itineraryValidator');
+const schemas = require('../validators/itineraryValidator');
 
 const {
   createItinerary,
+  listItineraries,
   getItinerary,
+  getItineraryForEnquiry,
+  getItineraryForInquiry,
   updateItinerary,
   downloadItineraryPdf,
+  previewItinerary,
   downloadItineraryDocx
 } = require('../controllers/itineraryController');
 
@@ -19,10 +23,14 @@ const {
 // tighten to roleMiddleware(['super_admin']) if only super_admin should.
 router.use(protect, authorize('super_admin', 'admin'));
 
-router.post('/', validate(createItinerarySchema), createItinerary);
-router.get('/:id', getItinerary);
-router.patch('/:id', validate(updateItinerarySchema), updateItinerary);
-router.get('/:id/pdf', downloadItineraryPdf);
-router.get('/:id/docx', downloadItineraryDocx);
+router.post('/', validate(schemas.createItinerarySchema), createItinerary);
+router.get('/', validate(schemas.listItinerariesSchema), listItineraries);
+router.get('/by-enquiry/:enquiryId', validate(schemas.itineraryByEnquirySchema), getItineraryForEnquiry);
+router.get('/by-inquiry/:inquiryId', validate(schemas.itineraryByInquirySchema), getItineraryForInquiry);
+router.get('/:id', validate(schemas.itineraryIdSchema), getItinerary);
+router.patch('/:id', validate(schemas.updateItinerarySchema), updateItinerary);
+router.get('/:id/pdf', validate(schemas.itineraryIdSchema), downloadItineraryPdf);
+router.get('/:id/preview', validate(schemas.itineraryIdSchema), previewItinerary);
+router.get('/:id/docx', validate(schemas.itineraryIdSchema), downloadItineraryDocx);
 
 module.exports = router;

@@ -8,7 +8,9 @@
     "start": "node index.js",
     "seed:admin": "node seeds/admin.seed.js",
     "seed:destinations": "node seeds/destinations.seed.js",
-    "seed:blogs": "node seeds/blogs.seed.js"
+    "seed:blogs": "node seeds/blogs.seed.js",
+    "seed:demo-itinerary": "node scripts/seed-demo-itinerary.js",
+    "seed:thailand-itinerary": "node scripts/seed-thailand-itinerary-template.js"
   },
   "keywords": [],
   "author": "",

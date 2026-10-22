@@ -15,6 +15,7 @@ const inquirySchema = new mongoose.Schema(
     source: { type: String, enum: ['website', 'whatsapp', 'phone', 'manual'], default: 'website', index: true },
     status: { type: String, enum: ['new', 'contacted', 'follow_up', 'converted', 'closed'], default: 'new', index: true },
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    assignedItinerary: { type: mongoose.Schema.Types.ObjectId, ref: 'Itinerary', default: null },
     notes: [
       {
         text: { type: String, required: true, trim: true },

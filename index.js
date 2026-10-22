@@ -22,6 +22,7 @@ const testimonialRoutes = require('./routes/testimonialRoutes')
 const blogRoutes = require('./routes/blogRoutes')
 const tripEnquiryRoutes = require('./routes/tripEnquiryRoutes');
 const itineraryRoutes = require('./routes/itineraryRoutes');
+const itineraryTemplateRoutes = require('./routes/itineraryTemplateRoutes');
 const seoRoutes = require('./routes/seoRoutes')
 const seoController = require('./controllers/seoController')
 const newsRoutes = require("./routes/newsRoutes");
@@ -129,6 +130,7 @@ app.use('/api/v1/newsletter', newsletterRoutes)
 app.use('/api/v1/testimonials', testimonialRoutes)
 app.use('/api/v1/trip-enquiries', tripEnquiryRoutes);
 app.use('/api/v1/itineraries', itineraryRoutes);
+app.use('/api/v1/itinerary-templates', itineraryTemplateRoutes);
 app.use('/api/v1/blogs', blogRoutes)
 app.use('/api/v1/seo', seoRoutes)
 app.use('/api/v1/news', newsRoutes)

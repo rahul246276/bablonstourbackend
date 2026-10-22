@@ -24,7 +24,7 @@ const absoluteUrl = (path = '/') => {
       const url = new URL(path)
       return url.origin === CANONICAL_SITE_URL ? url.toString() : `${SITE_URL}${normalizePath(url.pathname)}`
     } catch {
-      return SITE_URL
+      return SITE_URLk
     }
   }
   return `${SITE_URL}${normalizePath(path)}`

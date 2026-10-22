@@ -1,0 +1,4 @@
+module.exports = {
+  detailed: { pdfOptions: { format: 'A4', printBackground: true, preferCSSPageSize: true, displayHeaderFooter: true, headerTemplate: '<div></div>', footerTemplate: '<div style="width:100%;font-size:8px;text-align:center;color:#777;padding:0 20px"><span>Bablons Travel &amp; Entertainment</span> · Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>', margin: { top: '12mm', bottom: '15mm', left: '16mm', right: '16mm' } } },
+  proposal: { pdfOptions: { format: 'A4', printBackground: true, preferCSSPageSize: true, displayHeaderFooter: true, headerTemplate: '<div></div>', footerTemplate: '<div style="width:100%;font:700 8px Arial,sans-serif;text-align:right;color:#0F1F4B;padding:0 18mm">PAGE <span class="pageNumber"></span> / <span class="totalPages"></span></div>', margin: { top: '0', right: '0', bottom: '0', left: '0' }, scale: 1 } }
+};
