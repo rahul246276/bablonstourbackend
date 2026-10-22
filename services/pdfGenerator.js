@@ -7,10 +7,25 @@ const designRegistry = require('../config/itineraryDesigns');
 let browserPromise = null;
 function getBrowser() {
   if (!browserPromise) {
-    browserPromise = puppeteer.launch({
+    const launchOptions = {
       headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    }).catch((error) => { browserPromise = null; throw error; });
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    };
+    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN;
+    if (executablePath) launchOptions.executablePath = executablePath;
+
+    let launchPromise;
+    launchPromise = puppeteer.launch(launchOptions).then((browser) => {
+      browser.once('disconnected', () => {
+        if (browserPromise === launchPromise) browserPromise = null;
+      });
+      return browser;
+    }).catch((error) => {
+      if (browserPromise === launchPromise) browserPromise = null;
+      console.error('[itinerary-pdf] Chromium launch failed:', error.message);
+      throw error;
+    });
+    browserPromise = launchPromise;
   }
   return browserPromise;
 }
@@ -23,9 +38,10 @@ function getBrowser() {
 async function generateItineraryPdfBuffer(itinerary) {
   const html = buildItineraryHTML(itinerary);
   const browser = await getBrowser();
-  const page = await browser.newPage();
+  let page;
 
   try {
+    page = await browser.newPage();
     page.on('requestfailed', (request) => {
       if (request.resourceType() !== 'image') return;
       let host = 'unknown host';
@@ -66,10 +82,11 @@ async function generateItineraryPdfBuffer(itinerary) {
     const options = itinerary.designKey === 'proposal' ? selectedDesign.pdfOptions : { ...detailedOptions, ...selectedDesign.pdfOptions };
     return await page.pdf(options);
   } catch (error) {
-    if (error?.message?.toLowerCase().includes('browser has disconnected')) browserPromise = null;
+    if (/browser.*disconnect|target closed|browser closed/i.test(error?.message || '')) browserPromise = null;
+    console.error('[itinerary-pdf] PDF rendering failed:', error.message);
     throw error;
   } finally {
-    if (!page.isClosed()) await page.close().catch(() => {});
+    if (page && !page.isClosed()) await page.close().catch(() => {});
   }
 }
 
