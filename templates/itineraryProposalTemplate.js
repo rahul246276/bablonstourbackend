@@ -47,7 +47,7 @@ function proposalHTML(itinerary = {}) {
   const pages = [];
   const addPage = (body, className = '') => pages.push(`<section class="page ${className}">${body}${className.includes('cover') || className.includes('back-cover') ? '' : footer()}</section>`);
   const destinations = [...new Set((m.route.length ? m.route.map((stop) => typeof stop === 'string' ? stop : stop.city) : m.destinations).filter(Boolean))];
-  const routeText = destinations.join('  →  ') || m.destinations.join('  →  ') || 'Destination to be confirmed';
+  const routeText = destinations.join('  â†’  ') || m.destinations.join('  â†’  ') || 'Destination to be confirmed';
   const dateText = dateRange(m.travelDates);
   const hero = safeImage(m.hero || m.destinationPhotos[0]?.url);
   const photoFor = (city, index) => {
@@ -60,7 +60,6 @@ function proposalHTML(itinerary = {}) {
 
   // 1. Cover
   addPage(`<div class="cover-image"${hero ? ` style="background-image:linear-gradient(180deg,rgba(8,22,55,.48),rgba(8,22,55,.2) 38%,rgba(8,18,44,.9) 100%),url('${esc(hero)}')"` : ''}></div><div class="cover-inner"><div class="cover-top">${logo}<span class="cover-edition">BESPOKE<br>TRAVEL PROPOSAL</span></div><div class="cover-title"><p class="eyebrow">YOUR JOURNEY</p><p class="proposal-title">${esc(m.title)}</p><h1>${esc(title)}</h1><div class="gold-bar"></div><p class="tagline">${esc(m.tagline)}</p>${m.customerName ? `<p class="prepared">Prepared especially for <strong>${esc(m.customerName)}</strong></p>` : ''}</div><div class="trip-panel"><h2>Trip at a glance</h2><div class="trip-grid">${tripRow('members','Travelers',`${m.travelers.adults} Adults${m.travelers.children ? ` + ${m.travelers.children} Child${m.childrenAges.length ? ` (age ${m.childrenAges.join(', ')})` : ''}` : ''}`)}${tripRow('dates','Travel dates',dateText)}${tripRow('package','Package',m.packageName || `${m.daysCount} Days / ${m.nights} Nights`)}${tripRow('route','Route',routeText)}${tripRow('duration','Duration',`${m.daysCount} Days / ${m.nights} Nights`)}</div></div></div>`, 'cover');
-
   // 2. Discover
   const discoverStops = destinations.length ? destinations : m.destinationPhotos.map((photo) => photo.caption).filter(Boolean);
   const cityTileGroups = chunk(discoverStops, 4).map((stops, groupIndex) => stops.map((city, index) => {
@@ -69,13 +68,13 @@ function proposalHTML(itinerary = {}) {
     return `<article class="destination-tile">${photo ? `<img src="${esc(photo)}" alt="${esc(city)}">` : `<div class="photo-fallback">${esc(city)}</div>`}<h3>${esc(city)}</h3><p>${esc(m.cityCards.find((item) => item.name.toLowerCase() === city.toLowerCase())?.shortDescription || m.destinationPhotos[cityIndex]?.caption || 'A memorable stop on your journey')}</p></article>`;
   }).join(''));
   const introText = m.destinationIntroduction || `Explore ${routeText} on a carefully planned ${m.daysCount}-day journey, with time to enjoy each destination at a relaxed pace.`;
-  const experiences = m.destinationHighlights.slice(0, 6).map((item) => `<li>${esc(item)}</li>`).join('');
-  const packageHighlights = m.packageHighlights.slice(0, 6).map((item) => `<li>${esc(item)}</li>`).join('');
-  addPage(`${pageHead('YOUR DESTINATIONS','Discover')}<p class="intro">${esc(introText)}</p>${cityTileGroups[0] ? `<div class="destination-grid" style="grid-template-columns:repeat(${discoverStops.length === 1 ? 1 : 2},1fr)">${cityTileGroups[0]}</div>` : ''}${experiences ? `<h2 class="section-title">Experiences to look forward to</h2><ul class="experience-list">${experiences}</ul>` : ''}${packageHighlights ? `<h2 class="section-title compact-section">Package highlights</h2><ul class="experience-list">${packageHighlights}</ul>` : ''}`);
+  const experiences = m.destinationHighlights.slice(0, 8).map((item) => `<li>${esc(item)}</li>`).join('');
+  const packageHighlights = m.packageHighlights.slice(0, 8).map((item) => `<li>${esc(item)}</li>`).join('');
+  if (introText || cityTileGroups.length || experiences || packageHighlights) addPage(`${pageHead('YOUR DESTINATIONS','Discover')}${introText ? `<p class="intro">${esc(introText)}</p>` : ''}${cityTileGroups[0] ? `<div class="destination-grid" style="grid-template-columns:repeat(${discoverStops.length === 1 ? 1 : 2},1fr)">${cityTileGroups[0]}</div>` : ''}${experiences ? `<h2 class="section-title">Experiences to look forward to</h2><ul class="experience-list">${experiences}</ul>` : ''}${packageHighlights ? `<h2 class="section-title compact-section">Package highlights</h2><ul class="experience-list">${packageHighlights}</ul>` : ''}`);
   for (const [index, tiles] of cityTileGroups.slice(1).entries()) addPage(`${pageHead('YOUR DESTINATIONS',`Discover · continued ${index + 1}`)}<div class="destination-grid">${tiles}</div>`);
-  for (const items of chunk(m.destinationHighlights.slice(6), 12)) addPage(`${pageHead('MORE TO LOOK FORWARD TO','Experiences · continued')}<ul class="experience-list">${items.map((item)=>`<li>${esc(item)}</li>`).join('')}</ul>`);
-  for (const items of chunk(m.packageHighlights.slice(6), 12)) addPage(`${pageHead('PACKAGE DETAILS','Package highlights · continued')}<ul class="experience-list">${items.map((item)=>`<li>${esc(item)}</li>`).join('')}</ul>`);
 
+  for (const items of chunk(m.destinationHighlights.slice(8), 12)) addPage(`${pageHead('MORE TO LOOK FORWARD TO','Experiences · continued')}<ul class="experience-list">${items.map((item)=>`<li>${esc(item)}</li>`).join('')}</ul>`);
+  for (const items of chunk(m.packageHighlights.slice(8), 12)) addPage(`${pageHead('PACKAGE DETAILS','Package highlights · continued')}<ul class="experience-list">${items.map((item)=>`<li>${esc(item)}</li>`).join('')}</ul>`);
   // 3. At a glance
   const glanceInclusions = m.inclusions.slice(0, 4).map((item) => `<span>✓ ${esc(item)}</span>`).join('');
   for (const [index, days] of balancedChunks(m.days, 5).entries()) {
@@ -88,7 +87,6 @@ function proposalHTML(itinerary = {}) {
     const blocks = days.map((day) => `<article class="day-block"><div class="day-heading"><span>DAY ${day.number}</span><h2>${esc(day.title)}</h2></div>${day.description ? `<p class="day-description">${esc(day.description)}</p>` : ''}<ul>${(day.activities.length ? day.activities : ['Activities to be confirmed']).map((activity) => `<li>${esc(activity)}</li>`).join('')}</ul><p class="day-meta">${[day.transfer && `Transfer: ${day.transfer}`, day.meals.length && `Meals: ${day.meals.join(', ')}`, day.overnight && `Overnight: ${day.overnight}`].filter(Boolean).map(esc).join('  ·  ')}</p></article>`).join('');
     addPage(`${pageHead('YOUR DAILY JOURNEY', days.length > 1 ? 'Day-wise Itinerary' : `Day ${days[0]?.number || ''}`)}<div class="day-list">${blocks || '<p class="muted">Daily itinerary to be confirmed.</p>'}</div>`);
   }
-
   // 5. Inclusions and exclusions
   const includeItems = m.inclusions.map((item) => `<li><span class="check">✓</span><span>${esc(item)}</span></li>`).join('');
   const excludeItems = m.exclusions.map((item) => `<li><span class="cross">✕</span><span>${esc(item)}</span></li>`).join('');
@@ -117,7 +115,6 @@ function proposalHTML(itinerary = {}) {
   if (policyCards) addPage(`${pageHead('BEFORE YOU TRAVEL','Plan Your Trip')}<div class="policy-grid">${policyCards}</div>`);
   const policyContinued = policyParts.flatMap(({icon,label,parts})=>parts.slice(1).map((text)=>[icon,`${label} · continued`,text]));
   for (const items of chunk(policyContinued,4)) addPage(`${pageHead('BEFORE YOU TRAVEL','Plan Your Trip · continued')}<div class="policy-grid">${items.map(([icon,label,text])=>`<article class="policy-card"><span class="policy-icon">${pdfIcon(icon)}</span><h2>${esc(label)}</h2><div>${esc(text)}</div></article>`).join('')}</div>`);
-
   // 8. Pricing and payment schedule
   const p = m.pricing;
   const derivedSubtotal = p.adults * p.adultBase + p.children * p.childBase;
@@ -125,15 +122,16 @@ function proposalHTML(itinerary = {}) {
   const derivedTotal = derivedSubtotal + derivedGst + p.additionalCharges.reduce((sum, row) => sum + (Number(row.amount) || 0), 0) - p.discounts.reduce((sum, row) => sum + (Number(row.amount) || 0), 0) + p.flightCost;
   const grandTotal = p.totalPrice > 0 ? p.totalPrice : derivedTotal;
   const gstLabel = p.gstPercentage > 0 ? `GST (${p.gstPercentage}%)` : 'GST';
-  const priceRows = [[`Adults (${p.adults} × ${money(p.adultBase,p.currency)} per person)`,p.adults*p.adultBase],...(p.children ? [[`Child${m.childrenAges.length ? ` (age ${m.childrenAges.join(', ')})` : ''} (${p.children} × ${money(p.childBase,p.currency)})`,p.children*p.childBase]] : []),[`Subtotal`,derivedSubtotal],[gstLabel,derivedGst],...p.additionalCharges.map((row)=>[row.label||'Additional charge',Number(row.amount)||0]),...p.discounts.map((row)=>[row.label||'Discount',-(Number(row.amount)||0)]),...(p.flightCost? [['Flights',p.flightCost]]:[])];
+  const priceRows = [[`Adults (${p.adults} × ${money(p.adultBase,p.currency)} per person)`,p.adults*p.adultBase],...(p.children ? [[`Child${m.childrenAges.length ? ` (age ${m.childrenAges.join(', ')})` : ''} (${p.children} × ${money(p.childBase,p.currency)})`,p.children*p.childBase]] : []),['Subtotal',derivedSubtotal],[gstLabel,derivedGst],...p.additionalCharges.map((row)=>[row.label||'Additional charge',Number(row.amount)||0]),...p.discounts.map((row)=>[row.label||'Discount',-(Number(row.amount)||0)]),...(p.flightCost ? [['Flights',p.flightCost]] : [])];
   const priceGroups = chunk(priceRows,8), scheduleGroups = chunk(p.paymentSchedule,8);
+  
   const pricingNote = `${esc(p.priceStatus === 'confirmed' ? 'Package pricing confirmed as of the proposal date.' : p.priceStatus === 'pending' ? 'Pricing is pending supplier confirmation.' : 'This is an estimate and remains subject to availability and final confirmation.')}${p.pricingNotes ? `<br>${esc(p.pricingNotes)}` : ''}`;
   if (grandTotal > 0 || scheduleGroups.length) priceGroups.forEach((rows,index)=>{
     const includeSchedule = index===priceGroups.length-1 && scheduleGroups.length>0;
     const schedule = includeSchedule ? scheduleGroups[0].map((row)=>`<div class="schedule-row"><span>${esc(row.label || 'Payment')}</span><b>${money(row.amount,p.currency)}</b></div>`).join('') : '';
     addPage(`${pageHead(index ? 'PACKAGE INVESTMENT' : 'A CLEAR BREAKDOWN',index ? 'Pricing · continued' : 'Pricing')}<div class="pricing-table"><h2 class="pricing-heading">Package investment</h2>${rows.map(([label,value])=>`<div class="price-row"><span>${esc(label)}</span><b>${money(value,p.currency)}</b></div>`).join('')}${index===priceGroups.length-1 ? `<div class="grand-total"><span>Total package price</span><b>${money(grandTotal,p.currency)}</b></div>` : ''}</div>${includeSchedule ? `<h2 class="section-title">Payment schedule</h2><div class="schedule">${schedule}</div>` : ''}${index===0 ? `<aside class="pricing-note">${pricingNote}</aside>` : ''}`);
   });
-  const remainingSchedule = priceGroups.length ? scheduleGroups.slice(1) : scheduleGroups;
+  const remainingSchedule = priceGroups.length ? [] : scheduleGroups;
   for (const [index,rows] of remainingSchedule.entries()) addPage(`${pageHead('PAYMENT DETAILS',index ? 'Payment schedule · continued' : 'Payment schedule')}<div class="schedule">${rows.map((row)=>`<div class="schedule-row"><span>${esc(row.label || 'Payment')}</span><b>${money(row.amount,p.currency)}</b></div>`).join('')}</div>${index===remainingSchedule.length-1 ? `<aside class="pricing-note">${pricingNote}</aside>` : ''}`);
 
   // 9. Six-photo preview gallery.
@@ -287,6 +285,42 @@ function styles() { return `
 .gallery-grid figcaption span{white-space:normal;overflow-wrap:anywhere;text-overflow:clip}
 .back-content{height:auto;min-height:297mm}
 .back-footer{flex-wrap:wrap}
+.day-list{overflow:visible}
+.day-block{break-inside:auto;page-break-inside:auto;overflow:visible}
+.day-date{margin:-5mm 0 5mm;color:#6B7280;font-size:9pt}
+.day-hero{display:block;width:100%;height:58mm;margin:0 0 5mm;border-radius:4mm;object-fit:cover}
+.day-block ul{margin:1mm 0 0;padding-left:5mm}
+.day-block li{margin:0 0 1.5mm;color:#374151;font-size:9pt;line-height:1.45}
+.day-description{margin:1mm 0 3mm;color:#4B5563;font:italic 10pt/1.5 'Playfair Display',serif;overflow-wrap:anywhere}
+.day-meta{margin:4mm 0 0;padding-top:2mm;border-top:.2mm solid rgba(15,31,75,.12);color:#6B7280;font-size:8pt;overflow-wrap:anywhere}
+.contact-copy b{overflow:visible;white-space:normal;overflow-wrap:anywhere;word-break:break-word;line-height:1.2}
+.primary-contact{min-height:19mm;align-items:start}
+.contact-copy{padding-top:1mm}
+.page-number{color:#6B7280;font-size:7pt;letter-spacing:.4px}
+.page-head{margin-bottom:3.5mm}
+.page-head h1{font-size:31pt;line-height:1.04}
+.intro{margin-bottom:2.5mm;font-size:9.5pt;line-height:1.32}
+.destination-grid{gap:2.5mm}
+.destination-tile{min-height:39mm}
+.destination-tile img,.destination-tile .photo-fallback{height:22mm}
+.destination-tile h3{margin:1.2mm 2mm 0;font-size:11pt}
+.destination-tile p{margin:.8mm 3mm 1mm;font-size:7pt;line-height:1.2}
+.section-title{margin:2.5mm 0 1mm}
+.experience-list{gap:1mm 5mm}
+.experience-list{grid-template-columns:1fr 1fr;grid-template-rows:repeat(4,auto);grid-auto-flow:column}
+.experience-list li{font-size:8pt;line-height:1.28}
+.inclusion-strip{margin-top:3mm;padding:3mm 4mm}
+.day-block{margin-bottom:3mm;padding:3mm 4mm;border-left:1mm solid #C9A040;border-radius:2mm 4mm 4mm 2mm}
+.day-block li{line-height:1.4}
+.compact-record{margin:1mm 0 1.5mm;padding-bottom:1.5mm;line-height:1.35}
+.info-card{padding:4mm 5mm;border-radius:3mm}
+.pricing-heading{padding:3.5mm 5mm}
+.price-row,.schedule-row{padding:3mm 5mm;line-height:1.4}
+.policy-grid{gap:4mm}
+.policy-card{padding:4mm;min-height:58mm}
+.gallery-grid{gap:3mm}
+.back-contact-panel{padding:4.5mm 5mm}
+.primary-contact-grid,.social-contact-grid{gap:1.7mm}
 `; }
 
 module.exports = { proposalHTML, getBrandLogoDataUri };

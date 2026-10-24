@@ -194,6 +194,30 @@ function buildItineraryHTML(itinerary) {
     .header-brand b, .header-brand small { display:block; }
     .header-brand b { color:#14284b; font-size:10pt; }
     .header-brand small { margin-top:3px; color:#667085; font-size:8pt; }
+    /* Refined spacing and hierarchy for the existing detailed itinerary. */
+    .header { margin-bottom:18px; padding-bottom:13px; }
+    .header-brand { gap:12px; margin-bottom:12px; }
+    .header h1 { font-size:27pt; line-height:1.08; }
+    .badge-row { gap:6px; margin-top:10px; }
+    .pill { padding:5px 10px; line-height:1.25; }
+    .section { margin:18px 0; }
+    .section h2 { margin-bottom:10px; padding-bottom:7px; }
+    .section h3 { margin:12px 0 6px; }
+    .day-card { margin-bottom:14px; border-color:#e5e8ee; border-radius:10px; box-shadow:0 2px 8px rgba(20,40,75,.045); }
+    .day-body { padding:14px 16px; }
+    .day-body h3 { margin-bottom:7px; line-height:1.25; }
+    .desc { margin-bottom:9px; line-height:1.55; }
+    .activities { margin:0 0 10px; padding-left:18px; line-height:1.45; }
+    .activities li { margin:4px 0; padding-left:2px; }
+    .day-meta { gap:6px 14px; padding-top:8px; line-height:1.45; }
+    .pricing-box { margin-top:18px; padding:18px 20px; border-radius:10px; }
+    .price-grid { gap:16px; margin-bottom:9px; padding-bottom:8px; line-height:1.4; }
+    table { margin:9px 0 14px; }
+    th,td { padding:8px 7px; line-height:1.4; }
+    .photo-grid { gap:14px; }
+    figure img { border-radius:8px; }
+    .policy { margin:10px 0; padding:11px 13px; line-height:1.5; }
+    .closing-copy { gap:4mm; }
   </style>
   </head>
   <body>
