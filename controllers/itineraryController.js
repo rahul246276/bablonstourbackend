@@ -6,7 +6,7 @@ const TripEnquiry = require('../models/TripEnquiry');
 const Inquiry = require('../models/Inquiry');
 const { generateItineraryPdfBuffer } = require('../services/pdfGenerator');
 const { generateItineraryDocxBuffer } = require('../services/docxGenerator');
-const { getAllowedPdfImageHosts, isAllowedPdfImageUrl } = require('../utils/pdfImageAllowlist');
+const { isAllowedPdfImageUrl } = require('../utils/pdfImageAllowlist');
 const { buildItineraryHTML } = require('../templates/itineraryTemplate');
 const brand = require('../config/itineraryBrand');
 
@@ -165,7 +165,7 @@ function slugify(text = 'itinerary') {
 
 function collectBlockedImageUrls(itinerary = {}) {
   const urls = [itinerary.coverImage?.url, ...(itinerary.destinationPhotos || []).map((photo) => photo.url), ...(itinerary.days_plan || []).map((day) => day.image?.url), ...(itinerary.destinationRefs || []).map((destination) => destination.heroImage?.url)].filter(Boolean);
-  return [...new Set(urls.filter((url) => !isAllowedPdfImageUrl(url)))].map((url) => ({ url, allowedHosts: getAllowedPdfImageHosts() }));
+  return [...new Set(urls.filter((url) => !isAllowedPdfImageUrl(url)))].map((url) => ({ url }));
 }
 function attachPdfWarnings(itinerary) { itinerary.set('pdfImageWarnings', collectBlockedImageUrls(itinerary), { strict: false }); }
 

@@ -3,7 +3,9 @@ const { getPackageHighlights } = require('../utils/itineraryHighlights');
 
 function cloudinaryTransform(url, width = 1600) {
   if (!isAllowedPdfImageUrl(url)) return '';
-  return url.replace(/\/upload\/(?!.*\/w_\d+,q_auto,f_auto\/)/, `/upload/w_${width},q_auto,f_auto/`);
+  const parsed = new URL(url);
+  if (parsed.hostname.toLowerCase() !== 'res.cloudinary.com') return parsed.href;
+  return parsed.href.replace(/\/upload\/(?!.*\/w_\d+,q_auto,f_auto\/)/, `/upload/w_${width},q_auto,f_auto/`);
 }
 
 function toProposalModel(itinerary = {}, brand, countryPacks = {}) {

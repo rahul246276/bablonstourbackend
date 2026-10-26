@@ -1,6 +1,6 @@
 const puppeteer = require('puppeteer');
 const { buildItineraryHTML } = require('../templates/itineraryTemplate');
-const { getAllowedPdfImageHosts } = require('../utils/pdfImageAllowlist');
+const { isSafePdfImageRequest } = require('../utils/pdfImageAllowlist');
 const designRegistry = require('../config/itineraryDesigns');
 
 // Reuse one browser instance across requests instead of launching per-call.
@@ -76,13 +76,18 @@ async function generateItineraryPdfBuffer(itinerary) {
       });
     });
     await page.setRequestInterception(true);
+    const imageHostChecks = new Map();
     page.on('request', (request) => {
       let parsed;
       try { parsed = new URL(request.url()); } catch { return request.abort(); }
-      const allowedHosts = getAllowedPdfImageHosts();
       if (parsed.protocol === 'data:' && /^data:image\//i.test(parsed.href)) return request.continue();
       if (parsed.protocol === 'https:' && ['fonts.googleapis.com', 'fonts.gstatic.com'].includes(parsed.hostname.toLowerCase())) return request.continue();
-      if (parsed.protocol === 'https:' && allowedHosts.includes(parsed.hostname.toLowerCase())) return request.continue();
+      if (parsed.protocol === 'https:' && request.resourceType() === 'image') {
+        const host = parsed.hostname.toLowerCase();
+        if (!imageHostChecks.has(host)) imageHostChecks.set(host, isSafePdfImageRequest(request.url()));
+        imageHostChecks.get(host).then((isSafe) => isSafe ? request.continue() : request.abort()).catch(() => request.abort());
+        return;
+      }
       return request.abort();
     });
     await page.setContent(html, { waitUntil: 'networkidle0' });

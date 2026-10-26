@@ -1,8 +1,10 @@
 const { z } = require('zod');
+const { isAllowedPdfImageUrl } = require('../utils/pdfImageAllowlist');
 
 const id = z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid id');
 const optionalText = z.string().trim().max(500).optional().or(z.literal(''));
-const imageSchema = z.object({ url: z.string().trim().max(2000).optional().or(z.literal('')), publicId: z.string().trim().max(300).optional().or(z.literal('')), alt: z.string().trim().max(300).optional().or(z.literal('')) }).optional();
+const imageUrl = z.string().trim().max(2000).refine((value) => !value || isAllowedPdfImageUrl(value), 'Use a public HTTPS image URL');
+const imageSchema = z.object({ url: imageUrl.optional().or(z.literal('')), publicId: z.string().trim().max(300).optional().or(z.literal('')), alt: z.string().trim().max(300).optional().or(z.literal('')) }).optional();
 const daySchema = z.object({
   dayNumber: z.coerce.number().int().min(1), title: z.string().trim().min(1).max(200),
   shortTitle: z.string().trim().max(120).optional().or(z.literal('')),
@@ -18,7 +20,7 @@ const sourceTemplateSchema = z.object({
   template: id.nullable().optional(), name: z.string().trim().max(200).optional().or(z.literal('')),
   version: z.coerce.number().int().positive().nullable().optional(), snapshot: z.unknown().nullable().optional()
 }).nullable().optional();
-const imageItem = z.object({ url: z.string().trim().url().max(2000), caption: optionalText, alt: optionalText });
+const imageItem = z.object({ url: z.string().trim().url().max(2000).refine(isAllowedPdfImageUrl, 'Use a public HTTPS image URL'), caption: optionalText, alt: optionalText });
 const routeStop = z.union([z.string().trim().max(150), z.object({ city: z.string().trim().min(1).max(150), nights: z.coerce.number().int().min(0).max(60).default(0) })]);
 const hotelSchema = z.object({ destination: optionalText, name: optionalText, alternative: optionalText, roomType: optionalText, occupancy: optionalText, mealPlan: optionalText, nights: z.coerce.number().int().min(0).max(60).default(0), confirmation: z.enum(['confirmed', 'provisional', 'pending']).default('provisional') });
 const transferSchema = z.object({ route: optionalText, type: optionalText, notes: optionalText, confirmation: z.enum(['confirmed', 'provisional', 'pending']).default('provisional') });
