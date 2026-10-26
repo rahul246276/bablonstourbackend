@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Puppeteer browser download (install locally with npm run install:chrome)
+.cache/puppeteer/
+
 # Environment variables / secrets
 .env
 .env.*

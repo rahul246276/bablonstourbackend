@@ -46,8 +46,12 @@ function proposalHTML(itinerary = {}) {
   const m = toProposalModel(itinerary, brand, countryPacks);
   const pages = [];
   const addPage = (body, className = '') => pages.push(`<section class="page ${className}">${body}${className.includes('cover') || className.includes('back-cover') ? '' : footer()}</section>`);
-  const destinations = [...new Set((m.route.length ? m.route.map((stop) => typeof stop === 'string' ? stop : stop.city) : m.destinations).filter(Boolean))];
-  const routeText = destinations.join('  â†’  ') || m.destinations.join('  â†’  ') || 'Destination to be confirmed';
+  const cleanDestination = (value) => String(value || '').replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+  const routeStops = m.route.length
+    ? m.route.map((stop) => typeof stop === 'string' ? stop : stop.city || stop.destination || stop.name)
+    : m.destinations;
+  const destinations = [...new Set(routeStops.map(cleanDestination).filter(Boolean))];
+  const routeText = destinations.join(' / ') || 'Destination to be confirmed';
   const dateText = dateRange(m.travelDates);
   const hero = safeImage(m.hero || m.destinationPhotos[0]?.url);
   const photoFor = (city, index) => {
@@ -55,11 +59,21 @@ function proposalHTML(itinerary = {}) {
     return linked?.heroImage || m.destinationPhotos[index]?.url || '';
   };
   const brandLogo = getBrandLogoDataUri();
-  const logo = `<div class="brand-mark">${brandLogo ? `<span class="brand-logo-frame"><img src="${brandLogo}" alt="Bablons Travel logo"></span>` : '<span class="brand-icon">B</span>'}<span class="brand-wordmark"><b>${esc(brand.name)}</b><small>${esc(brand.contacts.website.replace(/^https?:\/\//, ''))}</small></span></div>`;
-  const title = m.country || m.destinations.join(' · ') || m.title || 'Your Journey';
+  const logo = `<div class="brand-mark">${brandLogo ? `<span class="brand-logo-frame"><img src="${brandLogo}" alt="Bablons Travel logo"></span>` : '<span class="brand-icon">B</span>'}<span class="brand-wordmark"><b>${esc(brand.name)}</b><span class="brand-tagline">Your Journey, Thoughtfully Planned</span><small>${esc(brand.contacts.website.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</small></span></div>`;
+  const coverStops = destinations.length ? destinations : m.destinations.map(cleanDestination).filter(Boolean);
+  const title = coverStops[0] || m.country || 'Your Journey';
+  const rawPackageName = m.packageName || m.title || '';
+  const isDemo = /^DEMO(?:\s+ONLY)?\s*[-:|\u2013\u2014]?\s*/i.test(rawPackageName);
+  const coverPackageName = rawPackageName.replace(/^DEMO(?:\s+ONLY)?\s*[-:|\u2013\u2014]?\s*/i, '').trim();
+  const tripDuration = m.daysCount ? `${m.daysCount} Days / ${m.nights} Nights` : 'To be confirmed';
+  const travelerCount = m.travelers.adults + m.travelers.children;
+  const travelerParts = [];
+  if (m.travelers.adults) travelerParts.push(`${m.travelers.adults} Adult${m.travelers.adults === 1 ? '' : 's'}`);
+  if (m.travelers.children) travelerParts.push(`${m.travelers.children} Child${m.travelers.children === 1 ? '' : 'ren'}${m.childrenAges.length ? ` (age ${m.childrenAges.join(', ')})` : ''}`);
+  const travelerSummary = travelerCount ? `${travelerCount} ${travelerCount === 1 ? 'Traveler' : 'Travelers'}${travelerParts.length ? ` - ${travelerParts.join(', ')}` : ''}` : 'To be confirmed';
 
   // 1. Cover
-  addPage(`<div class="cover-image"${hero ? ` style="background-image:linear-gradient(180deg,rgba(8,22,55,.48),rgba(8,22,55,.2) 38%,rgba(8,18,44,.9) 100%),url('${esc(hero)}')"` : ''}></div><div class="cover-inner"><div class="cover-top">${logo}<span class="cover-edition">BESPOKE<br>TRAVEL PROPOSAL</span></div><div class="cover-title"><p class="eyebrow">YOUR JOURNEY</p><p class="proposal-title">${esc(m.title)}</p><h1>${esc(title)}</h1><div class="gold-bar"></div><p class="tagline">${esc(m.tagline)}</p>${m.customerName ? `<p class="prepared">Prepared especially for <strong>${esc(m.customerName)}</strong></p>` : ''}</div><div class="trip-panel"><h2>Trip at a glance</h2><div class="trip-grid">${tripRow('members','Travelers',`${m.travelers.adults} Adults${m.travelers.children ? ` + ${m.travelers.children} Child${m.childrenAges.length ? ` (age ${m.childrenAges.join(', ')})` : ''}` : ''}`)}${tripRow('dates','Travel dates',dateText)}${tripRow('package','Package',m.packageName || `${m.daysCount} Days / ${m.nights} Nights`)}${tripRow('route','Route',routeText)}${tripRow('duration','Duration',`${m.daysCount} Days / ${m.nights} Nights`)}</div></div></div>`, 'cover');
+  addPage(`<div class="cover-image"${hero ? ` style="background-image:linear-gradient(90deg,rgba(0,24,52,.76) 0%,rgba(0,31,67,.48) 48%,rgba(0,31,67,.08) 100%),linear-gradient(180deg,rgba(0,20,43,.42) 0%,rgba(0,20,43,.02) 43%,rgba(0,22,47,.28) 69%,rgba(0,22,47,.94) 100%),url('${esc(hero)}')"` : ''}></div><div class="cover-inner"><div class="cover-top">${logo}<span class="cover-edition">PERSONALISED<br>TRAVEL ITINERARY</span></div><div class="cover-title"><p class="cover-kicker">${isDemo ? 'DEMO ONLY' : 'YOUR JOURNEY'}</p>${m.country ? `<p class="cover-country">${esc(m.country)}</p>` : ''}<h1>${esc(title)}</h1><p class="cover-duration">${esc(tripDuration)}</p><div class="gold-bar"></div>${coverPackageName ? `<p class="package-label">PACKAGE</p><p class="cover-package">${esc(coverPackageName)}</p>` : ''}<p class="tagline">${esc(m.tagline)}</p></div><div class="trip-summary-label">YOUR TRIP AT A GLANCE</div><div class="trip-panel"><div class="trip-grid">${tripRow('dates','Travel dates',dateText,'trip-date')}${tripRow('route','Route',routeText,'trip-route')}${tripRow('duration','Duration',tripDuration,'trip-duration-cell')}${tripRow('members','Travelers',travelerSummary,'trip-travelers')}${m.customerName ? tripRow('members','Prepared for',m.customerName,'trip-prepared') : ''}</div></div><p class="cover-footnote"><span>${esc(brand.name)}</span><a href="${esc(brand.contacts.website)}">${esc(brand.contacts.website.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</a></p></div>`, 'cover');
   // 2. Discover
   const discoverStops = destinations.length ? destinations : m.destinationPhotos.map((photo) => photo.caption).filter(Boolean);
   const cityTileGroups = chunk(discoverStops, 4).map((stops, groupIndex) => stops.map((city, index) => {
@@ -164,7 +178,7 @@ function proposalHTML(itinerary = {}) {
 
 function pageHead(eyebrow,title) { return `<header class="page-head"><p class="eyebrow">${esc(eyebrow)}</p><h1>${esc(title)}</h1><div class="gold-bar"></div></header>`; }
 function footer() { return `<footer><span>${esc(brand.name)}</span><a href="${esc(brand.contacts.website)}">${esc(brand.contacts.website.replace(/^https?:\/\//,''))}</a><svg class="watermark" viewBox="0 0 500 35" aria-hidden="true"><path d="M3 33 18 18l12 15 13-21 18 21 18-16 14 16 19-25 21 25 17-13 15 13 13-20 19 20 17-15 17 15 18-23 18 23 20-12 20 12 16-18 18 18h105"/></svg></footer>`; }
-function tripRow(icon,label,value) { return `<div class="trip-row"><span class="trip-icon-wrap">${pdfIcon(icon)}</span><span class="trip-label">${esc(label)}</span><b>${esc(value || 'To be confirmed')}</b></div>`; }
+function tripRow(icon,label,value,className='') { return `<div class="trip-row ${className}"><span class="trip-icon-wrap">${pdfIcon(icon)}</span><div class="trip-copy"><span class="trip-label">${esc(label)}</span><b>${esc(value || 'To be confirmed')}</b></div></div>`; }
 function card(icon,title,content) { return `<article class="info-card"><span class="card-icon">${pdfIcon(icon)}</span><div><p class="eyebrow">${esc(title)}</p>${content}</div></article>`; }
 function safeImage(value) { if (!isAllowedPdfImageUrl(value)) return ''; try { return new URL(value).href.replace(/["'()\\]/g,(c)=>`%${c.charCodeAt(0).toString(16)}`); } catch { return ''; } }
 function getBrandLogoDataUri() {
@@ -321,6 +335,46 @@ function styles() { return `
 .gallery-grid{gap:3mm}
 .back-contact-panel{padding:4.5mm 5mm}
 .primary-contact-grid,.social-contact-grid{gap:1.7mm}
+
+/* Reference-led luxury itinerary cover */
+.cover-image{background-image:linear-gradient(135deg,#082849,#123f67 55%,#0b294a)}
+.cover-inner{position:relative;z-index:1;display:flex;flex-direction:column;width:100%;height:297mm;min-height:297mm;padding:10mm 11mm 9mm;color:#fff}
+.cover-top{display:flex;flex:0 0 auto;justify-content:space-between;align-items:center;gap:8mm;min-height:22mm;padding:0;background:transparent}
+.brand-mark{display:flex;align-items:center;gap:4mm;min-width:0;color:#fff}
+.brand-logo-frame{display:grid;flex:0 0 21mm;place-items:center;width:21mm;height:21mm;padding:1mm;border:0;border-radius:3mm;background:#FBF7F0;overflow:hidden}
+.brand-logo-frame img{display:block;width:100%;height:100%;object-fit:contain}
+.brand-wordmark{display:flex;flex-direction:column;min-width:0;gap:.7mm}
+.brand-wordmark b{color:#fff;font:700 17pt/1.15 'Playfair Display',Georgia,serif;overflow-wrap:anywhere}
+.brand-tagline{color:#E5C572;font-size:9pt;font-weight:600;letter-spacing:.25px}
+.brand-wordmark small{color:rgba(255,255,255,.88);font-size:8.5pt}
+.cover-edition{flex:0 0 auto;max-width:42mm;padding:1mm 0 1mm 5mm;border-left:.6mm solid #C9A040;color:#fff;text-align:center;font-size:8pt;font-weight:700;line-height:1.65;letter-spacing:1.7px}
+.cover-title{display:flex;flex:1 1 auto;flex-direction:column;justify-content:flex-start;min-height:0;max-width:155mm;margin:0;padding:13mm 2mm 8mm}
+.cover-kicker{margin:0 0 4mm;color:#E5B94F;font-size:9pt;font-weight:800;letter-spacing:2.8px}
+.cover-country{margin:0 0 1mm;color:#fff;font-size:12pt;font-weight:700;letter-spacing:4px;text-transform:uppercase}
+.cover-title h1{max-width:150mm;margin:0;color:#fff;font:700 55pt/.98 'Playfair Display',Georgia,serif;letter-spacing:-1px;text-shadow:0 2px 16px rgba(0,0,0,.22);overflow-wrap:anywhere}
+.cover-duration{margin:3mm 0 0;color:#fff;font:italic 18pt/1.3 'Playfair Display',Georgia,serif;letter-spacing:.5px}
+.cover-title .gold-bar{width:20mm;height:1.6mm;margin:3.5mm 0 4mm;background:#DDBB62}
+.package-label{margin:0 0 1mm;color:#E5C572;font-size:7pt;font-weight:800;letter-spacing:2px}
+.cover-package{max-width:138mm;margin:0;color:#fff;font:600 12pt/1.35 Inter,Arial,sans-serif;overflow-wrap:anywhere}
+.cover-title .tagline{max-width:112mm;margin:3mm 0 0;color:rgba(255,255,255,.94);font:italic 13pt/1.4 'Playfair Display',Georgia,serif}
+.trip-summary-label{position:relative;z-index:2;align-self:flex-start;margin:0 0 -1mm;padding:2mm 8mm 2.2mm;background:#DDBB62;color:#0F2F50;font-size:8pt;font-weight:800;letter-spacing:2px}
+.trip-panel{flex:0 0 auto;margin:0;padding:5mm 6mm 4mm;border:1px solid rgba(221,187,98,.9);border-radius:4mm;background:rgba(251,248,241,.98);box-shadow:0 2mm 10mm rgba(0,0,0,.18);color:#143452}
+.trip-grid{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto auto;gap:0}
+.trip-row{display:grid;grid-template-columns:11mm minmax(0,1fr);align-items:center;min-width:0;min-height:23mm;padding:3mm 4mm;border:0;border-right:.25mm solid rgba(20,52,82,.12);color:#143452}
+.trip-copy{display:flex;flex-direction:column;min-width:0;gap:1.4mm}
+.trip-label{color:#173858;font-size:7pt;font-weight:800;letter-spacing:1.55px;text-transform:uppercase}
+.trip-row b{color:#243f5a;font-size:9.3pt;font-weight:500;line-height:1.35;overflow-wrap:anywhere;word-break:normal}
+.trip-icon-wrap{display:grid;place-items:center;width:9mm;height:9mm;border-radius:0;background:transparent;color:#D4AD4C}
+.trip-icon-wrap .pdf-icon{width:8mm;height:8mm}
+.trip-date{grid-column:1;grid-row:1;border-bottom:.25mm solid rgba(20,52,82,.12)}
+.trip-route{grid-column:2;grid-row:1;border-bottom:.25mm solid rgba(20,52,82,.12)}
+.trip-duration-cell{grid-column:3;grid-row:1;border-right:0;border-bottom:.25mm solid rgba(20,52,82,.12)}
+.trip-travelers{grid-column:1;grid-row:2;border-bottom:0}
+.trip-prepared{grid-column:2 / span 2;grid-row:2;border:0}
+.cover-footnote{display:flex;align-items:center;gap:5mm;flex:0 0 auto;margin:8mm 0 0;color:rgba(255,255,255,.86);font-size:7.5pt;font-weight:700;letter-spacing:1.2px}
+.cover-footnote a{color:#fff;text-decoration:none;font-size:8.5pt;font-weight:500;letter-spacing:.2px}
+.cover-footnote:after{content:'';height:.4mm;flex:1;background:linear-gradient(90deg,#C9A040,rgba(201,160,64,.1))}
+.cover-title,.trip-panel{break-inside:avoid;page-break-inside:avoid}
 `; }
 
 module.exports = { proposalHTML, getBrandLogoDataUri };

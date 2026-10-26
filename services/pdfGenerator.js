@@ -11,7 +11,8 @@ function getBrowser() {
       headless: 'new',
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     };
-    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN;
+    const configuredPath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN;
+    const executablePath = configuredPath || resolveAvailableChrome();
     if (executablePath) launchOptions.executablePath = executablePath;
 
     let launchPromise;
@@ -23,11 +24,34 @@ function getBrowser() {
     }).catch((error) => {
       if (browserPromise === launchPromise) browserPromise = null;
       console.error('[itinerary-pdf] Chromium launch failed:', error.message);
+      if (/Could not find Chrome/i.test(error.message)) {
+        console.error('[itinerary-pdf] Install Chrome with `npm run install:chrome` from the backend directory, or set PUPPETEER_EXECUTABLE_PATH to an installed Chrome/Chromium executable.');
+      }
       throw error;
     });
     browserPromise = launchPromise;
   }
   return browserPromise;
+}
+
+function resolveAvailableChrome() {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  try {
+    const bundledPath = puppeteer.executablePath();
+    if (fs.existsSync(bundledPath)) return bundledPath;
+  } catch { /* Continue to system browser discovery. */ }
+
+  const candidates = process.platform === 'win32'
+    ? [
+        path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+        path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+        path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe')
+      ]
+    : process.platform === 'darwin'
+      ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
+      : ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
+  return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || null;
 }
 
 /**
