@@ -7,7 +7,6 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "install:chrome": "puppeteer browsers install chrome",
     "postinstall": "puppeteer browsers install chrome",
     "seed:admin": "node seeds/admin.seed.js",
     "seed:destinations": "node seeds/destinations.seed.js",
