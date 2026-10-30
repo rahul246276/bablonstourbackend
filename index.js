@@ -42,6 +42,15 @@ const allowedOrigins = CLIENT_URL
   .map((origin) => origin.trim().replace(/\/+$/, ''))
   .filter(Boolean)
 
+// Keep the deployed admin and public sites available even when CLIENT_URL is
+// set to a single origin in the hosting dashboard. Additional preview/local
+// origins can still be supplied through CLIENT_URL.
+allowedOrigins.push(
+  'https://admin.bablonstravelent.com',
+  'https://bablonstravelent.com',
+  'https://www.bablonstravelent.com'
+)
+
 allowedOrigins.push(
   'http://localhost:3100',
   'http://127.0.0.1:3100',
