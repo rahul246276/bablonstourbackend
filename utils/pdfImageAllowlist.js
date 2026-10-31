@@ -45,11 +45,17 @@ async function isSafePdfImageRequest(value = '') {
   try {
     const hostname = new URL(value).hostname.replace(/^\[|\]$/g, '');
     if (net.isIP(hostname)) return isPublicIpAddress(hostname);
-    const addresses = await dns.lookup(hostname, { all: true, verbatim: true });
+    let timer;
+    const addresses = await Promise.race([
+      dns.lookup(hostname, { all: true, verbatim: true }),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Image host DNS lookup timed out')), 3_000);
+      })
+    ]).finally(() => clearTimeout(timer));
     return addresses.length > 0 && addresses.every(({ address }) => isPublicIpAddress(address));
   } catch {
     return false;
   }
 }
 
-module.exports = { isAllowedPdfImageUrl, isSafePdfImageRequest };
+module.exports = { isAllowedPdfImageUrl, isPublicIpAddress, isSafePdfImageRequest };

@@ -1,7 +1,18 @@
 const puppeteer = require('puppeteer');
 const { buildItineraryHTML } = require('../templates/itineraryTemplate');
-const { isSafePdfImageRequest } = require('../utils/pdfImageAllowlist');
+const { isAllowedPdfImageUrl } = require('../utils/pdfImageAllowlist');
 const designRegistry = require('../config/itineraryDesigns');
+const { randomUUID } = require('node:crypto');
+const { createSerialQueue, PdfQueueFullError } = require('./pdfJobQueue');
+const { fetchPdfImage } = require('./pdfImageFetcher');
+
+const pdfQueue = createSerialQueue({ maxPending: 2 });
+const RENDER_TIMEOUT_MS = 75_000;
+const CONTENT_TIMEOUT_MS = 15_000;
+const NETWORK_IDLE_TIMEOUT_MS = 15_000;
+const IMAGE_WAIT_TIMEOUT_MS = 6_000;
+const PDF_TIMEOUT_MS = 40_000;
+const IMAGE_REQUEST_CONCURRENCY = 2;
 
 // Reuse one browser instance across requests instead of launching per-call.
 let browserPromise = null;
@@ -60,45 +71,190 @@ function resolveAvailableChrome() {
  * by itineraryController.downloadItineraryPdf.
  */
 async function generateItineraryPdfBuffer(itinerary) {
-  const html = buildItineraryHTML(itinerary);
-  const browser = await getBrowser();
+  const jobId = randomUUID();
+  const enqueuedAt = Date.now();
+  const result = pdfQueue.run(async () => {
+    const startedAt = Date.now();
+    const startMemory = process.memoryUsage();
+    console.info('[itinerary-pdf] job started', {
+      jobId,
+      queueWaitMs: startedAt - enqueuedAt,
+      rssMb: Math.round(startMemory.rss / 1024 / 1024),
+      heapUsedMb: Math.round(startMemory.heapUsed / 1024 / 1024)
+    });
+    try {
+      const buffer = await renderItineraryPdfBuffer(itinerary);
+      const memory = process.memoryUsage();
+      console.info('[itinerary-pdf] job completed', {
+        jobId,
+        durationMs: Date.now() - startedAt,
+        pdfBytes: buffer.length,
+        rssMb: Math.round(memory.rss / 1024 / 1024),
+        heapUsedMb: Math.round(memory.heapUsed / 1024 / 1024)
+      });
+      return buffer;
+    } catch (error) {
+      console.error('[itinerary-pdf] job failed', {
+        jobId,
+        durationMs: Date.now() - startedAt,
+        statusCode: error.statusCode || 500,
+        name: error.name || 'Error',
+        error: sanitizeErrorMessage(error.message)
+      });
+      if (error.statusCode === 503 || error.statusCode === 504) throw error;
+      const safeError = new Error('PDF generation failed. Please retry.');
+      safeError.statusCode = 500;
+      throw safeError;
+    }
+  });
+  return result.catch((error) => {
+    if (error instanceof PdfQueueFullError) {
+      const stats = pdfQueue.getStats();
+      console.warn('[itinerary-pdf] job rejected; queue is full', { jobId, pending: stats.pending, active: stats.active });
+    }
+    throw error;
+  });
+}
+
+class PdfRenderTimeoutError extends Error {
+  constructor(stage) {
+    super(`PDF generation timed out during ${stage}. Please retry.`);
+    this.name = 'PdfRenderTimeoutError';
+    this.statusCode = 504;
+  }
+}
+
+function sanitizeErrorMessage(message = '') {
+  return String(message).replace(/https?:\/\/[^\s"')]+/gi, '[external URL]').slice(0, 400);
+}
+
+function withTimeout(promise, timeoutMs, stage) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new PdfRenderTimeoutError(stage)), timeoutMs);
+    })
+  ]).finally(() => clearTimeout(timer));
+}
+
+function createSemaphore(limit) {
+  let active = 0;
+  const waiters = [];
+  return async function acquire() {
+    if (active >= limit) await new Promise((resolve) => waiters.push(resolve));
+    active += 1;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      active -= 1;
+      waiters.shift()?.();
+    };
+  };
+}
+
+async function renderItineraryPdfBuffer(itinerary) {
   let page;
 
   try {
-    page = await browser.newPage();
-    page.on('requestfailed', (request) => {
-      if (request.resourceType() !== 'image') return;
-      let host = 'unknown host';
-      try { host = new URL(request.url()).hostname; } catch { /* Keep the log free of the full URL. */ }
-      console.warn('[itinerary-pdf] Image request failed; a placeholder will be used.', {
-        host,
-        reason: request.failure()?.errorText || 'request failed'
+    const render = async () => {
+      const html = buildItineraryHTML(itinerary);
+      const browser = await getBrowser();
+      page = await browser.newPage();
+      page.setDefaultNavigationTimeout(CONTENT_TIMEOUT_MS);
+      page.setDefaultTimeout(10_000);
+
+      page.on('requestfailed', (request) => {
+        releaseImageRequest(request);
+        if (request.resourceType() !== 'image') return;
+        let host = 'unknown host';
+        try { host = new URL(request.url()).hostname; } catch { /* Keep the log free of the full URL. */ }
+        console.warn('[itinerary-pdf] Image request failed; a placeholder will be used.', {
+          host,
+          reason: request.failure()?.errorText || 'request failed'
+        });
       });
-    });
-    await page.setRequestInterception(true);
-    const imageHostChecks = new Map();
-    page.on('request', (request) => {
-      let parsed;
-      try { parsed = new URL(request.url()); } catch { return request.abort(); }
-      if (parsed.protocol === 'data:' && /^data:image\//i.test(parsed.href)) return request.continue();
-      if (parsed.protocol === 'https:' && ['fonts.googleapis.com', 'fonts.gstatic.com'].includes(parsed.hostname.toLowerCase())) return request.continue();
-      if (parsed.protocol === 'https:' && request.resourceType() === 'image') {
-        const host = parsed.hostname.toLowerCase();
-        if (!imageHostChecks.has(host)) imageHostChecks.set(host, isSafePdfImageRequest(request.url()));
-        imageHostChecks.get(host).then((isSafe) => isSafe ? request.continue() : request.abort()).catch(() => request.abort());
-        return;
+      page.on('requestfinished', releaseImageRequest);
+      await page.setRequestInterception(true);
+      const imageHostAddresses = new Map();
+      const imageBudget = { totalBytes: 0, reservedBytes: 0 };
+      const acquireImageSlot = createSemaphore(IMAGE_REQUEST_CONCURRENCY);
+      const imageRequestReleases = new Map();
+      function releaseImageRequest(request) {
+        const release = imageRequestReleases.get(request);
+        if (release) {
+          imageRequestReleases.delete(request);
+          release();
+        }
       }
-      return request.abort();
+      page.on('request', (request) => {
+        void (async () => {
+          let parsed;
+          try { parsed = new URL(request.url()); } catch { await request.abort(); return; }
+          if (parsed.protocol === 'data:' && /^data:image\//i.test(parsed.href)) { await request.continue(); return; }
+          if (parsed.protocol === 'https:' && ['fonts.googleapis.com', 'fonts.gstatic.com'].includes(parsed.hostname.toLowerCase())) { await request.continue(); return; }
+          if (parsed.protocol !== 'https:' || request.resourceType() !== 'image') { await request.abort(); return; }
+
+          const host = parsed.hostname.toLowerCase();
+          if (!isAllowedPdfImageUrl(request.url())) { await request.abort(); return; }
+          const release = await acquireImageSlot();
+          if (page.isClosed()) { release(); await request.abort().catch(() => {}); return; }
+          imageRequestReleases.set(request, release);
+          try {
+            const image = await fetchPdfImage(request.url(), imageBudget, imageHostAddresses);
+            await request.respond({ status: 200, contentType: image.contentType, body: image.body });
+          } catch (error) {
+            console.warn('[itinerary-pdf] Image rejected or unavailable; a placeholder will be used.', {
+              host,
+              reason: sanitizeErrorMessage(error.message)
+            });
+            await request.abort().catch(() => {});
+          } finally {
+            releaseImageRequest(request);
+          }
+        })().catch(() => request.abort().catch(() => {}));
+      });
+
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: CONTENT_TIMEOUT_MS });
+    await page.waitForNetworkIdle({ idleTime: 500, timeout: NETWORK_IDLE_TIMEOUT_MS }).catch(() => {
+      console.warn('[itinerary-pdf] Network idle wait reached its limit; continuing with image fallbacks where needed.');
     });
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    await page.evaluate(() => document.fonts.ready);
-    await page.evaluate(async () => {
+    await withTimeout(page.evaluate(async () => {
+      await Promise.race([document.fonts.ready, new Promise((resolve) => setTimeout(resolve, 5_000))]);
+    }), 6_000, 'font loading');
+    const oversizedImageCount = await withTimeout(page.evaluate(async () => {
       const fallback = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700"><rect width="1200" height="700" fill="#e9e5dc"/><circle cx="930" cy="160" r="70" fill="#d8c794"/><path d="M0 560 290 280l180 180 190-240 300 340 140-130 100 100v170H0Z" fill="#aebbb4"/><path d="m0 630 300-210 230 210 240-170 250 190 180-120v170H0Z" fill="#81968f"/></svg>');
-      await Promise.all(Array.from(document.images, async (image) => {
-        if (!image.complete || image.naturalWidth === 0) image.src = fallback;
-        try { await image.decode(); } catch { /* Preserve the original layout if the fallback also fails. */ }
-      }));
-    });
+      const deadline = Date.now() + 5_000;
+      let oversizedCount = 0;
+      for (const image of Array.from(document.images)) {
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) {
+          if (!image.complete || image.naturalWidth === 0) image.src = fallback;
+          continue;
+        }
+        if (image.complete && image.naturalWidth * image.naturalHeight > 20_000_000) {
+          image.src = fallback;
+          oversizedCount += 1;
+          continue;
+        }
+        try {
+          await Promise.race([image.decode(), new Promise((resolve) => setTimeout(resolve, Math.min(remaining, 2_500)))]);
+        } catch { /* Replace failed or undecodable remote images below. */ }
+        if (image.naturalWidth * image.naturalHeight > 20_000_000) {
+          image.src = fallback;
+          oversizedCount += 1;
+          continue;
+        }
+        if (!image.complete || image.naturalWidth === 0) {
+          image.src = fallback;
+          try { await image.decode(); } catch { /* The document layout remains intact if even the fallback fails. */ }
+        }
+      }
+      return oversizedCount;
+    }), IMAGE_WAIT_TIMEOUT_MS, 'image loading');
+    if (oversizedImageCount) console.warn('[itinerary-pdf] Replaced oversized images with the document fallback.', { count: oversizedImageCount });
+
     const detailedOptions = {
       format: 'A4',
       printBackground: true,
@@ -109,10 +265,16 @@ async function generateItineraryPdfBuffer(itinerary) {
     };
     const selectedDesign = designRegistry[itinerary.designKey] || designRegistry.detailed;
     const options = itinerary.designKey === 'proposal' ? selectedDesign.pdfOptions : { ...detailedOptions, ...selectedDesign.pdfOptions };
-    return await page.pdf(options);
+    return await withTimeout(page.pdf(options), PDF_TIMEOUT_MS, 'PDF rendering');
+    };
+
+    return await withTimeout(render(), RENDER_TIMEOUT_MS, 'rendering');
   } catch (error) {
     if (/browser.*disconnect|target closed|browser closed/i.test(error?.message || '')) browserPromise = null;
-    console.error('[itinerary-pdf] PDF rendering failed:', error.message);
+    if (!error.statusCode && error.name === 'TimeoutError') {
+      error.statusCode = 504;
+      error.message = 'PDF generation timed out. Please retry.';
+    }
     throw error;
   } finally {
     if (page && !page.isClosed()) await page.close().catch(() => {});
@@ -120,6 +282,7 @@ async function generateItineraryPdfBuffer(itinerary) {
 }
 
 async function closePdfBrowser() {
+  await pdfQueue.whenIdle();
   const activeBrowserPromise = browserPromise;
   browserPromise = null;
   if (!activeBrowserPromise) return;
@@ -127,4 +290,4 @@ async function closePdfBrowser() {
   if (browser.isConnected()) await browser.close();
 }
 
-module.exports = { generateItineraryPdfBuffer, closePdfBrowser };
+module.exports = { generateItineraryPdfBuffer, closePdfBrowser, getPdfQueueStats: pdfQueue.getStats };

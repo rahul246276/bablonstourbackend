@@ -10,6 +10,8 @@ const normalizeZodErrors = (error) => {
 }
 
 const errorMiddleware = (err, req, res, next) => {
+  if (res.headersSent) return next(err)
+
   let error = err
 
   if (err.name === 'CastError') {
@@ -36,6 +38,8 @@ const errorMiddleware = (err, req, res, next) => {
   const statusCode = error.statusCode || 500
   const message = error.message || 'Internal server error'
   const errors = error.errors || []
+
+  if (statusCode === 503) res.set('Retry-After', '15')
 
   if (process.env.NODE_ENV !== 'production') {
     console.error(err)
