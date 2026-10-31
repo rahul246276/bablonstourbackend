@@ -5,6 +5,7 @@ const designRegistry = require('../config/itineraryDesigns');
 const { randomUUID } = require('node:crypto');
 const { createSerialQueue, PdfQueueFullError } = require('./pdfJobQueue');
 const { fetchPdfImage } = require('./pdfImageFetcher');
+const { tryOptimizePdfImage } = require('./pdfImageOptimizer');
 
 const pdfQueue = createSerialQueue({ maxPending: 2 });
 const RENDER_TIMEOUT_MS = 75_000;
@@ -83,14 +84,22 @@ async function generateItineraryPdfBuffer(itinerary) {
       heapUsedMb: Math.round(startMemory.heapUsed / 1024 / 1024)
     });
     try {
-      const buffer = await renderItineraryPdfBuffer(itinerary);
+      const imageMetrics = {
+        imagesProcessed: 0,
+        imagesOptimized: 0,
+        imagesFallbackUsed: 0,
+        originalImageBytes: 0,
+        optimizedImageBytes: 0
+      };
+      const buffer = await renderItineraryPdfBuffer(itinerary, imageMetrics);
       const memory = process.memoryUsage();
       console.info('[itinerary-pdf] job completed', {
         jobId,
         durationMs: Date.now() - startedAt,
         pdfBytes: buffer.length,
         rssMb: Math.round(memory.rss / 1024 / 1024),
-        heapUsedMb: Math.round(memory.heapUsed / 1024 / 1024)
+        heapUsedMb: Math.round(memory.heapUsed / 1024 / 1024),
+        ...imageMetrics
       });
       return buffer;
     } catch (error) {
@@ -154,7 +163,7 @@ function createSemaphore(limit) {
   };
 }
 
-async function renderItineraryPdfBuffer(itinerary) {
+async function renderItineraryPdfBuffer(itinerary, imageMetrics) {
   let page;
 
   try {
@@ -180,6 +189,7 @@ async function renderItineraryPdfBuffer(itinerary) {
       const imageHostAddresses = new Map();
       const imageBudget = { totalBytes: 0, reservedBytes: 0 };
       const acquireImageSlot = createSemaphore(IMAGE_REQUEST_CONCURRENCY);
+      const acquireImageProcessingSlot = createSemaphore(1);
       const imageRequestReleases = new Map();
       function releaseImageRequest(request) {
         const release = imageRequestReleases.get(request);
@@ -203,11 +213,27 @@ async function renderItineraryPdfBuffer(itinerary) {
           imageRequestReleases.set(request, release);
           try {
             const image = await fetchPdfImage(request.url(), imageBudget, imageHostAddresses);
-            await request.respond({ status: 200, contentType: image.contentType, body: image.body });
+            const releaseProcessing = await acquireImageProcessingSlot();
+            try {
+              const optimization = await tryOptimizePdfImage(image.body);
+              if (!optimization.ok) {
+                optimization.error.imageDiagnostics = optimization.diagnostics;
+                throw optimization.error;
+              }
+              const optimized = optimization.image;
+              imageMetrics.imagesProcessed += 1;
+              imageMetrics.originalImageBytes += optimized.originalBytes;
+              imageMetrics.optimizedImageBytes += optimized.optimizedBytes;
+              if (optimized.optimized) imageMetrics.imagesOptimized += 1;
+              await request.respond({ status: 200, contentType: optimized.contentType, body: optimized.body });
+            } finally {
+              releaseProcessing();
+            }
           } catch (error) {
             console.warn('[itinerary-pdf] Image rejected or unavailable; a placeholder will be used.', {
               host,
-              reason: sanitizeErrorMessage(error.message)
+              reason: sanitizeErrorMessage(error.message),
+              ...(error.imageDiagnostics || {})
             });
             await request.abort().catch(() => {});
           } finally {
@@ -223,37 +249,34 @@ async function renderItineraryPdfBuffer(itinerary) {
     await withTimeout(page.evaluate(async () => {
       await Promise.race([document.fonts.ready, new Promise((resolve) => setTimeout(resolve, 5_000))]);
     }), 6_000, 'font loading');
-    const oversizedImageCount = await withTimeout(page.evaluate(async () => {
+    const fallbackImageCount = await withTimeout(page.evaluate(async () => {
       const fallback = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700"><rect width="1200" height="700" fill="#e9e5dc"/><circle cx="930" cy="160" r="70" fill="#d8c794"/><path d="M0 560 290 280l180 180 190-240 300 340 140-130 100 100v170H0Z" fill="#aebbb4"/><path d="m0 630 300-210 230 210 240-170 250 190 180-120v170H0Z" fill="#81968f"/></svg>');
       const deadline = Date.now() + 5_000;
-      let oversizedCount = 0;
+      let fallbackCount = 0;
       for (const image of Array.from(document.images)) {
         const remaining = deadline - Date.now();
         if (remaining <= 0) {
-          if (!image.complete || image.naturalWidth === 0) image.src = fallback;
-          continue;
-        }
-        if (image.complete && image.naturalWidth * image.naturalHeight > 20_000_000) {
-          image.src = fallback;
-          oversizedCount += 1;
+          if (!image.complete || image.naturalWidth === 0) {
+            image.src = fallback;
+            fallbackCount += 1;
+          }
           continue;
         }
         try {
           await Promise.race([image.decode(), new Promise((resolve) => setTimeout(resolve, Math.min(remaining, 2_500)))]);
         } catch { /* Replace failed or undecodable remote images below. */ }
-        if (image.naturalWidth * image.naturalHeight > 20_000_000) {
-          image.src = fallback;
-          oversizedCount += 1;
-          continue;
-        }
         if (!image.complete || image.naturalWidth === 0) {
           image.src = fallback;
+          fallbackCount += 1;
           try { await image.decode(); } catch { /* The document layout remains intact if even the fallback fails. */ }
         }
       }
-      return oversizedCount;
+      return fallbackCount;
     }), IMAGE_WAIT_TIMEOUT_MS, 'image loading');
-    if (oversizedImageCount) console.warn('[itinerary-pdf] Replaced oversized images with the document fallback.', { count: oversizedImageCount });
+    if (fallbackImageCount) {
+      imageMetrics.imagesFallbackUsed = fallbackImageCount;
+      console.warn('[itinerary-pdf] Images could not be displayed; using document fallback.', { count: fallbackImageCount });
+    }
 
     const detailedOptions = {
       format: 'A4',
